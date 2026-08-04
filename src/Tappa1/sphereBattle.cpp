@@ -12,7 +12,7 @@
 const char* window_title = "Sphere Battle";
 const unsigned window_width = 1000;
 const unsigned window_height = 800;
-const float max_frame_rate = 1;
+const float max_frame_rate = 60;
 int schermata = 0;
 
 
@@ -25,6 +25,12 @@ void drawTitle (sf::RenderWindow& window, const sf::Text& titleText, const sf::T
     window.draw(subtitleText);
 }
 
+void drawSelectScreen (sf::RenderWindow& window, std::vector<sf::RectangleShape>& sphere_selects) {
+    for (const auto& sphere_select : sphere_selects) {
+        window.draw(sphere_select);
+    }
+}
+
 
 ////////////
 // Handle //
@@ -32,6 +38,10 @@ void drawTitle (sf::RenderWindow& window, const sf::Text& titleText, const sf::T
 
 void handle_close (sf::RenderWindow& window) {
     window.close();
+}
+
+void handle_key (sf::RenderWindow& window) {
+    schermata = 1;
 }
 
 
@@ -49,7 +59,7 @@ sf::Font font_loader (sf::RenderWindow& window) {
     return font;
 }
 
-sf::Text title_text (sf::Font& font) {
+sf::Text title_loader (sf::Font& font) {
     // Stile
     sf::Text titleText (font, "Sphere Battle", 80);
     titleText.setFillColor(sf::Color::White);
@@ -64,7 +74,7 @@ sf::Text title_text (sf::Font& font) {
     return titleText;
 }
 
-sf::Text subtitle_text (sf::Font& font) {
+sf::Text subtitle_loader (sf::Font& font) {
     // Stile
     sf::Text subtitleText(font, "press any key", 30); // Dimensione 22px
     subtitleText.setFillColor(sf::Color(180, 180, 180)); // Grigio chiaro
@@ -76,6 +86,45 @@ sf::Text subtitle_text (sf::Font& font) {
     subtitleText.setPosition({window_width / 2.0f, (window_height / 2.0f) + 40.0f});
 
     return subtitleText;
+}
+
+std::vector<sf::RectangleShape> sphere_select_loader() {
+
+    // Variabili
+    std::vector<sf::RectangleShape> sphere_selects;
+    sphere_selects.reserve(6);
+    sf::Vector2f select_size(120.f, 120.f);
+    float thickness = 3.f;
+
+    // Configurazione select
+    auto setupSelect = [select_size, thickness] (sf::RectangleShape& sphere_select, sf::Color color, sf::Vector2f pos) {
+        sphere_select.setSize(select_size);
+        sphere_select.setFillColor(sf::Color::Transparent);
+        sphere_select.setOutlineColor(color);
+        sphere_select.setOutlineThickness(thickness);
+        sphere_select.setPosition(pos);
+    };
+
+    // Inizializzazione e modifica valori
+    sf::RectangleShape sphere_select1, sphere_select2, sphere_select3;
+    sf::RectangleShape sphere_select4, sphere_select5, sphere_select6;
+
+    setupSelect(sphere_select1, sf::Color(255, 176, 0), sf::Vector2f(180.f, 40.f));
+    setupSelect(sphere_select2, sf::Color(247, 255, 0), sf::Vector2f(440.f, 40.f));
+    setupSelect(sphere_select3, sf::Color(0, 255, 27), sf::Vector2f(700.f, 40.f));
+    setupSelect(sphere_select4, sf::Color(0, 255, 255), sf::Vector2f(180.f, 240.f));
+    setupSelect(sphere_select5, sf::Color(67, 0, 255), sf::Vector2f(440.f, 240.f));
+    setupSelect(sphere_select6, sf::Color(252, 0, 255), sf::Vector2f(700.f, 240.f));
+
+    // push 
+    sphere_selects.push_back(sphere_select1);
+    sphere_selects.push_back(sphere_select2);
+    sphere_selects.push_back(sphere_select3);
+    sphere_selects.push_back(sphere_select4);
+    sphere_selects.push_back(sphere_select5);
+    sphere_selects.push_back(sphere_select6);
+
+    return sphere_selects;
 }
 
 
@@ -91,23 +140,36 @@ int main () {
 
     // Font e testi
     sf::Font font = font_loader(window);
-    sf::Text titleText = title_text(font);
-    sf::Text subtitleText = subtitle_text(font);
+    sf::Text titleText = title_loader(font);
+    sf::Text subtitleText = subtitle_loader(font);
+
+    // Rettangoli
+    std::vector<sf::RectangleShape> sphere_selects = sphere_select_loader();
 
 
     // Loop principale
     while (window.isOpen()) {
+        
 
         // Eventi
         window.handleEvents (
             [&window](const sf::Event::Closed&) { 
                 handle_close(window); 
+            },
+            [&window](const sf::Event::KeyPressed&) { 
+                handle_key(window); 
             }
         );
         
         // Display
-        window.clear(sf::Color::Black);
-        drawTitle(window, titleText, subtitleText);
+        if (schermata == 0) {
+            window.clear(sf::Color::Black);
+            drawTitle(window, titleText, subtitleText);
+        }
+        else if (schermata == 1) {
+            window.clear(sf::Color::White);
+            drawSelectScreen(window, sphere_selects);
+        }
         window.display();
     }
 
