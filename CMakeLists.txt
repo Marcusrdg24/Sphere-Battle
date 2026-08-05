@@ -12,8 +12,14 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(sphereBattle src/Tappa1/sphereBattle.cpp)
-target_compile_features(sphereBattle PRIVATE cxx_std_17)
-target_link_libraries(sphereBattle PRIVATE SFML::Window SFML::System SFML::Graphics)
+# Tappa 1
+add_executable(sphereBattle1 src/Tappa1/sphereBattle.cpp)
+target_compile_features(sphereBattle1 PRIVATE cxx_std_17)
+target_link_libraries(sphereBattle1 PRIVATE SFML::Window SFML::System SFML::Graphics)
+
+# Tappa 2
+add_executable(sphereBattle2 src/Tappa2/sphereBattle.cpp)
+target_compile_features(sphereBattle2 PRIVATE cxx_std_17)
+target_link_libraries(sphereBattle2 PRIVATE SFML::Window SFML::System SFML::Graphics)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT sphereBattle)
