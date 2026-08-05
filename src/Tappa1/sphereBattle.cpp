@@ -10,8 +10,8 @@
 ////////////////////////
 
 const char* window_title = "Sphere Battle";
-const float window_width = 1000;
-const float window_height = 800;
+const unsigned window_width = 1000;
+const unsigned window_height = 800;
 const float max_frame_rate = 60;
 int schermata = 0;
 
@@ -60,7 +60,7 @@ void handle_key (sf::RenderWindow& window) {
 
 sf::Font font_loader (sf::RenderWindow& window) {
     sf::Font font;
-    if (!font.openFromFile("Utilities/PixelifySans-VariableFont_wght.ttf")) {
+    if (!font.openFromFile("Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
         std::cerr << "Errore nel caricamento del font!" << std::endl;
         window.close();
     }
