@@ -55,6 +55,7 @@ struct State {
     sf::RenderWindow window;
     Sphere ball1;
     Sphere ball2;
+    unsigned selected_balls = 0;
     int schermata = 0;
 
     State(unsigned w, unsigned h, std::string title) {
@@ -65,6 +66,20 @@ struct State {
         window.setMinimumSize(window.getSize());
     }
 };
+
+
+
+////////////////
+// Ausiliarie //
+////////////////
+
+void unselect_ball1 (State& stato) {
+    stato.selected_balls = 0;
+}
+
+void unselect_ball2 (State& stato) {
+    stato.selected_balls = 1;
+}
 
 
 
@@ -92,8 +107,11 @@ void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_sel
     for (const auto& character_name : character_names) {
         stato.window.draw(character_name);
     }
-    if (stato.ball1.ball.getRadius() > 0) {
+    if (stato.selected_balls > 0) {
         stato.window.draw(stato.ball1.ball);
+    }
+    if (stato.selected_balls > 1) {
+        stato.window.draw(stato.ball2.ball);
     }
 }
 
@@ -114,7 +132,17 @@ void handle (State& stato, const sf::Event::KeyPressed& keyEvent) {
         stato.schermata = 1;
     }
     else if (stato.schermata == 1) {
-
+        if (keyEvent.code == sf::Keyboard::Key::Escape) {
+            if (stato.selected_balls == 0) {
+                stato.schermata = 0;
+            }
+            else if (stato.selected_balls == 1) {
+                unselect_ball1(stato);
+            }
+            else if (stato.selected_balls == 2) {
+                unselect_ball2(stato);
+            }
+        }
     }
 }
 
@@ -160,10 +188,20 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
         }
 
         if (!selectedImage.empty()) {
-            if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedColor, selectedImage)) {
-                stato.window.close();
+            if (stato.selected_balls == 0) {
+                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedColor, selectedImage)) {
+                    stato.window.close();
+                }
+                stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
+                stato.selected_balls = 1;
             }
-            stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
+            else if (stato.selected_balls == 1) {
+                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedColor, selectedImage)) {
+                    stato.window.close();
+                }
+                stato.ball2.ball.setPosition(sf::Vector2f(890.f, 640.f));
+                stato.selected_balls = 2;
+            }
         }
     }
 }
