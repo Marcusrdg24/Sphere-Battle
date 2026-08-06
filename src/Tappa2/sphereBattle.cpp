@@ -5,14 +5,18 @@
 #include <string>
 #include <iostream>
 
-////////////////////////
-// Variabili Iniziali //
-////////////////////////
+///////////////////////
+// Variabili Globali //
+///////////////////////
 
 const char* window_title = "Sphere Battle";
 const unsigned window_width = 1000;
 const unsigned window_height = 800;
 const float max_frame_rate = 60;
+const float radius_sphere_select = 40;
+const float radius_sphere_selected = 70;
+const unsigned vertices = 100;
+const float thickness = -3.f;
 
 
 
@@ -20,18 +24,47 @@ const float max_frame_rate = 60;
 // Struct //
 ////////////
 
+struct Sphere {
+    sf::CircleShape ball;
+    sf::Texture image;
+
+    Sphere() = default;
+};
+
 struct State {
     sf::RenderWindow window;
-    unsigned ball1 = 0; // 0 = Non selezionata
-    unsigned ball2 = 0;
+    Sphere ball1;
+    Sphere ball2;
     int schermata = 0;
 
     State(unsigned w, unsigned h, std::string title) {
-        window = sf::RenderWindow(sf::VideoMode({w, h}), title);
+        sf::ContextSettings settings;
+        settings.antiAliasingLevel = 4;
+        window = sf::RenderWindow(sf::VideoMode({w, h}), title, sf::Style::Default, sf::State::Windowed, settings);
         window.setFramerateLimit(max_frame_rate);
         window.setMinimumSize(window.getSize());
     }
 };
+
+
+
+//////////////////////
+// Loader Ausiliari //
+//////////////////////
+
+void sphere_loader(State& stato, Sphere& sphere, float radius, unsigned vertices, float thickness, sf::Color color, std::string imagePath) {
+    // Stile
+    if(!sphere.image.loadFromFile(imagePath)) {
+        std::cerr << "Errore nel caricamento della texture: " << imagePath << std::endl;
+        stato.window.close();
+    }
+    sphere.ball.setPointCount(vertices);
+    sphere.ball.setRadius(radius);
+    sphere.ball.setTexture(&sphere.image);
+    sphere.ball.setFillColor(sf::Color::White);
+    sphere.ball.setOutlineColor(color);
+    sphere.ball.setOutlineThickness(thickness);
+}
 
 
 
@@ -45,13 +78,23 @@ void drawTitle (State& stato, const sf::Text& titleText, const sf::Text& subtitl
     stato.window.draw(subtitleText);
 }
 
+// P1
+void drawSelectedCharacter1 (State& stato) {
+    // Posizione
+    sf::FloatRect subBounds = stato.ball1.ball.getLocalBounds();
+    stato.ball1.ball.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
+                        subBounds.position.y + subBounds.size.y / 2.0f});
+    stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
+    stato.window.draw(stato.ball1.ball);
+}
+
 // Character Select
-void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_selects, std::vector<sf::CircleShape>& spheres, std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names) {
+void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_selects, std::vector<Sphere>& spheres, std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names) {
     for (const auto& sphere_select : sphere_selects) {
         stato.window.draw(sphere_select);
     }
     for (const auto& sphere : spheres) {
-        stato.window.draw(sphere);
+        stato.window.draw(sphere.ball);
     }
     for (const auto& line : lines) {
         stato.window.draw(line);
@@ -59,18 +102,25 @@ void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_sel
     for (const auto& character_name : character_names) {
         stato.window.draw(character_name);
     }
+
+    if (stato.ball1.ball.getRadius() > 0) {
+        drawSelectedCharacter1(stato);
+    }
 }
+
 
 
 ////////////
 // Handle //
 ////////////
 
-void handle_close (State& stato) {
+// Chiusura finestra
+void handle (State& stato, const sf::Event::Closed& closeEvent) {
     stato.window.close();
 }
 
-void handle_key_pressed (State& stato) {
+// Pressione tasto
+void handle (State& stato, const sf::Event::KeyPressed& keyEvent) {
     if (stato.schermata == 0) {
         stato.schermata = 1;
     }
@@ -79,12 +129,35 @@ void handle_key_pressed (State& stato) {
     }
 }
 
-void handle_mouse_pressed (State& stato) {
+// Click mouse
+void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
     if (stato.schermata == 0) {
         stato.schermata = 1;
     }
     else if (stato.schermata == 1) {
-
+        sf::Vector2f pos = stato.window.mapPixelToCoords(mouseEvent.position);
+        if (pos.y > 40 && pos.y < 160) {
+            if (pos.x > 180 && pos.x < 300) {
+                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png");
+            }
+            else if (pos.x > 440 && pos.x < 560) {
+                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png");
+            }
+            else if (pos.x > 700 && pos.x < 820) {
+                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png");
+            }
+        }
+        else if (pos.y > 240 && pos.y < 360) {
+            if (pos.x > 180 && pos.x < 300) {
+                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png");
+            }
+            else if (pos.x > 440 && pos.x < 560) {
+                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png");
+            }
+            else if (pos.x > 700 && pos.x < 820) {
+                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png");
+            }
+        }
     }
 }
 
@@ -93,11 +166,13 @@ void handle_mouse_pressed (State& stato) {
 // Ausiliarie //
 ////////////////
 
-sf::Font font_loader (sf::RenderWindow& window) {
+
+// Può ritornare errore in caso di file mancante
+sf::Font font_loader (State& stato) {
     sf::Font font;
     if (!font.openFromFile("Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
         std::cerr << "Errore nel caricamento del font!" << std::endl;
-        window.close();
+        stato.window.close();
     }
     return font;
 }
@@ -169,48 +244,29 @@ std::vector<sf::RectangleShape> sphere_selects_loader() {
     return sphere_selects;
 }
 
-std::vector<sf::CircleShape> spheres_loader() {
+// Può ritornare errore in caso di file mancante
+std::vector<Sphere> spheres_loader(State& stato) {
     // Variabili
-    std::vector<sf::CircleShape> spheres;
-    spheres.reserve(6);
-    float radius = 40.f;
-    float vertices = 100.f;
-    float thickness = -3.f;
+    std::vector<Sphere> spheres(6);
 
     // Configurazione sfere
-    auto setupSphere = [radius, thickness] (sf::CircleShape& sphere, sf::Color color, sf::Vector2f pos) {
-        sphere.setRadius(radius);
-        sphere.setFillColor(sf::Color::Transparent);
-        sphere.setOutlineColor(color);
-        sphere.setOutlineThickness(thickness);
-        sf::FloatRect subBounds = sphere.getLocalBounds();
-        sphere.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
+    auto setupSphere = [&stato] (Sphere& sphere, sf::Color color, std::string imagePath, sf::Vector2f pos) {
+        // Stile
+        sphere_loader(stato, sphere, radius_sphere_select, vertices, thickness, color, imagePath);
+
+        // Posizione
+        sf::FloatRect subBounds = sphere.ball.getLocalBounds();
+        sphere.ball.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
                             subBounds.position.y + subBounds.size.y / 2.0f});
-        sphere.setPosition(pos);
+        sphere.ball.setPosition(pos);
     };
 
-    // Inizializzazione e modifica valori
-    sf::CircleShape sphere1(vertices);
-    sf::CircleShape sphere2(vertices);
-    sf::CircleShape sphere3(vertices);
-    sf::CircleShape sphere4(vertices);
-    sf::CircleShape sphere5(vertices);
-    sf::CircleShape sphere6(vertices);
-
-    setupSphere(sphere1, sf::Color(255, 176, 0), sf::Vector2f(240.f, 100.f));
-    setupSphere(sphere2, sf::Color(247, 255, 0), sf::Vector2f(500.f, 100.f));
-    setupSphere(sphere3, sf::Color(0, 255, 27), sf::Vector2f(760.f, 100.f));
-    setupSphere(sphere4, sf::Color(255, 0, 0), sf::Vector2f(240.f, 300.f));
-    setupSphere(sphere5, sf::Color(67, 0, 255), sf::Vector2f(500.f, 300.f));
-    setupSphere(sphere6, sf::Color(252, 0, 255), sf::Vector2f(760.f, 300.f));
-
-    // Push
-    spheres.push_back(sphere1);
-    spheres.push_back(sphere2);
-    spheres.push_back(sphere3);
-    spheres.push_back(sphere4);
-    spheres.push_back(sphere5);
-    spheres.push_back(sphere6);
+    setupSphere(spheres[0], sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", sf::Vector2f(240.f, 100.f));
+    setupSphere(spheres[1], sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png", sf::Vector2f(500.f, 100.f));
+    setupSphere(spheres[2], sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png", sf::Vector2f(760.f, 100.f));
+    setupSphere(spheres[3], sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png", sf::Vector2f(240.f, 300.f));
+    setupSphere(spheres[4], sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png", sf::Vector2f(500.f, 300.f));
+    setupSphere(spheres[5], sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png", sf::Vector2f(760.f, 300.f));
 
     return spheres;
 }
@@ -295,7 +351,7 @@ int main () {
     State stato (window_width, window_height, window_title);
 
     // Font e testi
-    sf::Font font = font_loader(stato.window);
+    sf::Font font = font_loader(stato);
     sf::Text titleText = title_loader(font);
     sf::Text subtitleText = subtitle_loader(font);
 
@@ -303,7 +359,7 @@ int main () {
     std::vector<sf::RectangleShape> sphere_selects = sphere_selects_loader();
 
     // Sfere
-    std::vector<sf::CircleShape> spheres = spheres_loader();
+    std::vector<Sphere> spheres = spheres_loader(stato);
 
     // Linee
     std::vector<sf::VertexArray> lines = lines_loader();
@@ -317,14 +373,14 @@ int main () {
         
         // Eventi
         stato.window.handleEvents (
-            [&stato](const sf::Event::Closed&) { 
-                handle_close(stato); 
+            [&stato](const sf::Event::Closed& closeEvent) { 
+                handle(stato, closeEvent); 
             },
-            [&stato](const sf::Event::KeyPressed&) { 
-                handle_key_pressed(stato); 
+            [&stato](const sf::Event::KeyPressed& keyEvent) { 
+                handle(stato, keyEvent); 
             },
-            [&stato](const sf::Event::MouseButtonPressed&) {
-                handle_mouse_pressed(stato);
+            [&stato](const sf::Event::MouseButtonPressed& mouseEvent) {
+                handle(stato, mouseEvent);
             }
         );
         
