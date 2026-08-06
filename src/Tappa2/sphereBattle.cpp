@@ -29,6 +29,26 @@ struct Sphere {
     sf::Texture image;
 
     Sphere() = default;
+
+    bool sphere_loader(float radius, sf::Color color, std::string imagePath) {
+        // Stile
+        if (!image.loadFromFile(imagePath)) {
+            return false;
+        }
+        ball.setPointCount(vertices);
+        ball.setRadius(radius);
+        ball.setTexture(&image);
+        ball.setTextureRect(sf::IntRect({0, 0}, static_cast<sf::Vector2i>(image.getSize()))); // Generato con Gemini
+        ball.setFillColor(sf::Color::White);
+        ball.setOutlineColor(color);
+        ball.setOutlineThickness(thickness);
+
+        // Posizione
+        sf::FloatRect bounds = ball.getLocalBounds();
+        ball.setOrigin({bounds.position.x + bounds.size.x / 2.0f, 
+                        bounds.position.y + bounds.size.y / 2.0f});
+        return true;
+    }
 };
 
 struct State {
@@ -48,26 +68,6 @@ struct State {
 
 
 
-//////////////////////
-// Loader Ausiliari //
-//////////////////////
-
-void sphere_loader(State& stato, Sphere& sphere, float radius, unsigned vertices, float thickness, sf::Color color, std::string imagePath) {
-    // Stile
-    if(!sphere.image.loadFromFile(imagePath)) {
-        std::cerr << "Errore nel caricamento della texture: " << imagePath << std::endl;
-        stato.window.close();
-    }
-    sphere.ball.setPointCount(vertices);
-    sphere.ball.setRadius(radius);
-    sphere.ball.setTexture(&sphere.image);
-    sphere.ball.setFillColor(sf::Color::White);
-    sphere.ball.setOutlineColor(color);
-    sphere.ball.setOutlineThickness(thickness);
-}
-
-
-
 //////////
 // Draw //
 //////////
@@ -76,16 +76,6 @@ void sphere_loader(State& stato, Sphere& sphere, float radius, unsigned vertices
 void drawTitle (State& stato, const sf::Text& titleText, const sf::Text& subtitleText) {
     stato.window.draw(titleText);
     stato.window.draw(subtitleText);
-}
-
-// P1
-void drawSelectedCharacter1 (State& stato) {
-    // Posizione
-    sf::FloatRect subBounds = stato.ball1.ball.getLocalBounds();
-    stato.ball1.ball.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                        subBounds.position.y + subBounds.size.y / 2.0f});
-    stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
-    stato.window.draw(stato.ball1.ball);
 }
 
 // Character Select
@@ -102,9 +92,8 @@ void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_sel
     for (const auto& character_name : character_names) {
         stato.window.draw(character_name);
     }
-
     if (stato.ball1.ball.getRadius() > 0) {
-        drawSelectedCharacter1(stato);
+        stato.window.draw(stato.ball1.ball);
     }
 }
 
@@ -135,28 +124,46 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
         stato.schermata = 1;
     }
     else if (stato.schermata == 1) {
+        // Variabili
         sf::Vector2f pos = stato.window.mapPixelToCoords(mouseEvent.position);
+        std::string selectedImage = "";
+        sf::Color selectedColor;
+
+        // Selezione personaggio
         if (pos.y > 40 && pos.y < 160) {
             if (pos.x > 180 && pos.x < 300) {
-                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png");
+                selectedColor = sf::Color(255, 176, 0);
+                selectedImage = "Utilities/Images/Orange_Glove.png";
             }
             else if (pos.x > 440 && pos.x < 560) {
-                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png");
+                selectedColor = sf::Color(247, 255, 0);
+                selectedImage = "Utilities/Images/Yellow_Hat.png";
             }
             else if (pos.x > 700 && pos.x < 820) {
-                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png");
+                selectedColor = sf::Color(0, 255, 27);
+                selectedImage = "Utilities/Images/Green_Pan.png";
             }
         }
         else if (pos.y > 240 && pos.y < 360) {
             if (pos.x > 180 && pos.x < 300) {
-                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png");
+                selectedColor = sf::Color(255, 0, 0);
+                selectedImage = "Utilities/Images/Red_Knife.png";
             }
             else if (pos.x > 440 && pos.x < 560) {
-                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png");
+                selectedColor = sf::Color(67, 0, 255);
+                selectedImage = "Utilities/Images/Blue_Thunder.png";
             }
             else if (pos.x > 700 && pos.x < 820) {
-                sphere_loader(stato, stato.ball1, radius_sphere_selected, vertices, thickness, sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png");
+                selectedColor = sf::Color(252, 0, 255);
+                selectedImage = "Utilities/Images/Purple_Trap.png";
             }
+        }
+
+        if (!selectedImage.empty()) {
+            if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedColor, selectedImage)) {
+                stato.window.close();
+            }
+            stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
         }
     }
 }
@@ -251,14 +258,12 @@ std::vector<Sphere> spheres_loader(State& stato) {
 
     // Configurazione sfere
     auto setupSphere = [&stato] (Sphere& sphere, sf::Color color, std::string imagePath, sf::Vector2f pos) {
-        // Stile
-        sphere_loader(stato, sphere, radius_sphere_select, vertices, thickness, color, imagePath);
-
-        // Posizione
-        sf::FloatRect subBounds = sphere.ball.getLocalBounds();
-        sphere.ball.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                            subBounds.position.y + subBounds.size.y / 2.0f});
-        sphere.ball.setPosition(pos);
+        if (sphere.sphere_loader(radius_sphere_select, color, imagePath)) {
+            sphere.ball.setPosition(pos);
+        }
+        else {
+            stato.window.close();
+        }
     };
 
     setupSphere(spheres[0], sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", sf::Vector2f(240.f, 100.f));
