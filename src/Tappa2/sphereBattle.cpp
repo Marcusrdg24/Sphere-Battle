@@ -129,7 +129,9 @@ void handle (State& stato, const sf::Event::Closed& closeEvent) {
 // Pressione tasto
 void handle (State& stato, const sf::Event::KeyPressed& keyEvent) {
     if (stato.schermata == 0) {
-        stato.schermata = 1;
+        if (keyEvent.code != sf::Keyboard::Key::Escape) {
+            stato.schermata = 1;
+        }
     }
     else if (stato.schermata == 1) {
         if (keyEvent.code == sf::Keyboard::Key::Escape) {
