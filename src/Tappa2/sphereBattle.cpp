@@ -24,15 +24,45 @@ const float thickness = -3.f;
 // Struct //
 ////////////
 
+struct SphereData {
+    std::string name;
+    sf::Color color;
+    std::string imagePath;
+    std::string description;
+    std::string attackDescription;
+
+    SphereData() = default;
+
+    SphereData(std::string name, sf::Color color, std::string imagePath, std::string description, std::string attackDescription) {
+        this->name = name;
+        this->color = color;
+        this->imagePath = imagePath;
+        this->description = description;
+        this->attackDescription = attackDescription;
+    }
+};
+
+// Istanze di SphereData
+SphereData boxer ("Boxer", sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", "Lottatore pronto a tutto", "Guantoni");
+SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png", "Cowboy giustiziere", "Revolver");
+SphereData chef ("Chef", sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png", "Cuoco formidabile", "Padella");
+SphereData killer ("Killer", sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png", "Assassino spietato", "Coltello");
+SphereData magic ("Magic", sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png", "Magico controllore del clima", "Fulmini");
+SphereData hunter ("Hunter", sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png", "Cacciatore spietato", "Trappole");
+
 struct Sphere {
+    SphereData dati;
     sf::CircleShape ball;
     sf::Texture image;
 
     Sphere() = default;
 
-    bool sphere_loader(float radius, sf::Color color, std::string imagePath) {
+    bool sphere_loader(float radius, SphereData dati) {
+        // Informazioni
+        this->dati = dati;
+
         // Stile
-        if (!image.loadFromFile(imagePath)) {
+        if (!image.loadFromFile(dati.imagePath)) {
             return false;
         }
         ball.setPointCount(vertices);
@@ -40,7 +70,7 @@ struct Sphere {
         ball.setTexture(&image);
         ball.setTextureRect(sf::IntRect({0, 0}, static_cast<sf::Vector2i>(image.getSize()))); // Generato con Gemini
         ball.setFillColor(sf::Color::White);
-        ball.setOutlineColor(color);
+        ball.setOutlineColor(dati.color);
         ball.setOutlineThickness(thickness);
 
         // Posizione
@@ -156,49 +186,41 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
     else if (stato.schermata == 1) {
         // Variabili
         sf::Vector2f pos = stato.window.mapPixelToCoords(mouseEvent.position);
-        std::string selectedImage = "";
-        sf::Color selectedColor;
+        SphereData selectedSphere;
 
         // Selezione personaggio
         if (pos.y > 40 && pos.y < 160) {
             if (pos.x > 180 && pos.x < 300) {
-                selectedColor = sf::Color(255, 176, 0);
-                selectedImage = "Utilities/Images/Orange_Glove.png";
+                selectedSphere = boxer;
             }
             else if (pos.x > 440 && pos.x < 560) {
-                selectedColor = sf::Color(247, 255, 0);
-                selectedImage = "Utilities/Images/Yellow_Hat.png";
+                selectedSphere = cowboy;
             }
             else if (pos.x > 700 && pos.x < 820) {
-                selectedColor = sf::Color(0, 255, 27);
-                selectedImage = "Utilities/Images/Green_Pan.png";
+                selectedSphere = chef;
             }
         }
         else if (pos.y > 240 && pos.y < 360) {
             if (pos.x > 180 && pos.x < 300) {
-                selectedColor = sf::Color(255, 0, 0);
-                selectedImage = "Utilities/Images/Red_Knife.png";
+                selectedSphere = killer;
             }
             else if (pos.x > 440 && pos.x < 560) {
-                selectedColor = sf::Color(67, 0, 255);
-                selectedImage = "Utilities/Images/Blue_Thunder.png";
+                selectedSphere = magic;
             }
             else if (pos.x > 700 && pos.x < 820) {
-                selectedColor = sf::Color(252, 0, 255);
-                selectedImage = "Utilities/Images/Purple_Trap.png";
+                selectedSphere = hunter;
             }
         }
-
-        if (!selectedImage.empty()) {
+        if (!selectedSphere.imagePath.empty()) {
             if (stato.selected_balls == 0) {
-                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedColor, selectedImage)) {
+                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedSphere)) {
                     stato.window.close();
                 }
                 stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
                 stato.selected_balls = 1;
             }
             else if (stato.selected_balls == 1) {
-                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedColor, selectedImage)) {
+                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedSphere)) {
                     stato.window.close();
                 }
                 stato.ball2.ball.setPosition(sf::Vector2f(890.f, 640.f));
@@ -297,8 +319,8 @@ std::vector<Sphere> spheres_loader(State& stato) {
     std::vector<Sphere> spheres(6);
 
     // Configurazione sfere
-    auto setupSphere = [&stato] (Sphere& sphere, sf::Color color, std::string imagePath, sf::Vector2f pos) {
-        if (sphere.sphere_loader(radius_sphere_select, color, imagePath)) {
+    auto setupSphere = [&stato] (Sphere& sphere, SphereData dati, sf::Vector2f pos) {
+        if (sphere.sphere_loader(radius_sphere_select, dati)) {
             sphere.ball.setPosition(pos);
         }
         else {
@@ -306,12 +328,12 @@ std::vector<Sphere> spheres_loader(State& stato) {
         }
     };
 
-    setupSphere(spheres[0], sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", sf::Vector2f(240.f, 100.f));
-    setupSphere(spheres[1], sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png", sf::Vector2f(500.f, 100.f));
-    setupSphere(spheres[2], sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png", sf::Vector2f(760.f, 100.f));
-    setupSphere(spheres[3], sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png", sf::Vector2f(240.f, 300.f));
-    setupSphere(spheres[4], sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png", sf::Vector2f(500.f, 300.f));
-    setupSphere(spheres[5], sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png", sf::Vector2f(760.f, 300.f));
+    setupSphere(spheres[0], boxer, sf::Vector2f(240.f, 100.f));
+    setupSphere(spheres[1], cowboy, sf::Vector2f(500.f, 100.f));
+    setupSphere(spheres[2], chef, sf::Vector2f(760.f, 100.f));
+    setupSphere(spheres[3], killer, sf::Vector2f(240.f, 300.f));
+    setupSphere(spheres[4], magic, sf::Vector2f(500.f, 300.f));
+    setupSphere(spheres[5], hunter, sf::Vector2f(760.f, 300.f));
 
     return spheres;
 }
