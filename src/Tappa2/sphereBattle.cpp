@@ -43,11 +43,11 @@ struct SphereData {
 };
 
 // Istanze di SphereData
-SphereData boxer ("Boxer", sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", "Lottatore pronto a tutto", "Guantoni");
+SphereData boxer ("Boxer", sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", "Lottatore coraggioso", "Guantoni");
 SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png", "Cowboy giustiziere", "Revolver");
 SphereData chef ("Chef", sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png", "Cuoco formidabile", "Padella");
 SphereData killer ("Killer", sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png", "Assassino spietato", "Coltello");
-SphereData magic ("Magic", sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png", "Magico controllore del clima", "Fulmini");
+SphereData magic ("Magic", sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png", "Mago del clima", "Fulmini");
 SphereData hunter ("Hunter", sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png", "Cacciatore spietato", "Trappole");
 
 struct Sphere {
@@ -55,9 +55,7 @@ struct Sphere {
     sf::CircleShape ball;
     sf::Texture image;
 
-    Sphere() = default;
-
-    bool sphere_loader(float radius, SphereData dati) {
+    bool sphere_loader(float radius, SphereData dati, sf::Font font) {
         // Informazioni
         this->dati = dati;
 
@@ -83,10 +81,13 @@ struct Sphere {
 
 struct State {
     sf::RenderWindow window;
+    sf::Font font;
     Sphere ball1;
     Sphere ball2;
     unsigned selected_balls = 0;
     int schermata = 0;
+
+    State() = default;
 
     State(unsigned w, unsigned h, std::string title) {
         sf::ContextSettings settings;
@@ -94,6 +95,11 @@ struct State {
         window = sf::RenderWindow(sf::VideoMode({w, h}), title, sf::Style::Default, sf::State::Windowed, settings);
         window.setFramerateLimit(max_frame_rate);
         window.setMinimumSize(window.getSize());
+
+        // CARICAMENTO FONT DIRETTAMENTE NELLO STATO:
+        if (!font.openFromFile("Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
+            std::cerr << "Errore nel caricamento del font!" << std::endl;
+        }
     }
 };
 
@@ -111,6 +117,55 @@ void unselect_ball2 (State& stato) {
     stato.selected_balls = 1;
 }
 
+void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attackText, const SphereData dati, bool isP1) {
+    unsigned font_size_title = 40;
+    unsigned font_size_body = 23;
+    sf::Color textColor = sf::Color::Black;
+
+    // Nome
+    nameText.setString(dati.name);
+    nameText.setCharacterSize(font_size_title);
+    nameText.setFillColor(textColor);
+    nameText.setStyle(sf::Text::Bold);
+
+    // Offset
+    float offset;
+    if (isP1) {
+        sf::FloatRect nameBounds = nameText.getLocalBounds();
+        nameText.setOrigin({nameBounds.position.x + nameBounds.size.x / 2.0f, 
+                            nameBounds.position.y + nameBounds.size.y / 2.0f});
+        nameText.setPosition({110.f, 530.f});
+    }
+    else {
+        sf::FloatRect nameBounds = nameText.getLocalBounds();
+        nameText.setOrigin({nameBounds.position.x + nameBounds.size.x / 2.0f, 
+                            nameBounds.position.y + nameBounds.size.y / 2.0f});
+        nameText.setPosition({890.f, 530.f});
+    }
+
+    // Descrizione
+    descText.setString(dati.description);
+    descText.setCharacterSize(font_size_body);
+    descText.setFillColor(textColor);
+    if (isP1) {
+        descText.setPosition({210.f, 600.f});
+    }
+    else {
+        descText.setPosition({530.f, 600.f});
+    }
+
+    // Descrizione attacco
+    attackText.setString("Attacco: " + dati.attackDescription);
+    attackText.setCharacterSize(font_size_body);
+    attackText.setFillColor(textColor);
+    if (isP1) {
+        attackText.setPosition({210.f, 640.f});
+    }
+    else {
+        attackText.setPosition({530.f, 640.f});
+    }
+}
+
 
 
 //////////
@@ -124,7 +179,9 @@ void drawTitle (State& stato, const sf::Text& titleText, const sf::Text& subtitl
 }
 
 // Character Select
-void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_selects, std::vector<Sphere>& spheres, std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names) {
+void drawSelectScreen ( State& stato, std::vector<sf::RectangleShape>& sphere_selects, std::vector<Sphere>& spheres, 
+                        std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names, 
+                        std::vector<sf::Text>& ball1_description, std::vector<sf::Text>& ball2_description) {
     for (const auto& sphere_select : sphere_selects) {
         stato.window.draw(sphere_select);
     }
@@ -139,9 +196,15 @@ void drawSelectScreen (State& stato, std::vector<sf::RectangleShape>& sphere_sel
     }
     if (stato.selected_balls > 0) {
         stato.window.draw(stato.ball1.ball);
+        for (const auto& description : ball1_description) {
+            stato.window.draw(description);
+        }
     }
     if (stato.selected_balls > 1) {
         stato.window.draw(stato.ball2.ball);
+        for (const auto& description : ball2_description) {
+            stato.window.draw(description);
+        }
     }
 }
 
@@ -179,7 +242,7 @@ void handle (State& stato, const sf::Event::KeyPressed& keyEvent) {
 }
 
 // Click mouse
-void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
+void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std::vector<sf::Text>& ball1_description, std::vector<sf::Text>& ball2_description) {
     if (stato.schermata == 0) {
         stato.schermata = 1;
     }
@@ -213,17 +276,19 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
         }
         if (!selectedSphere.imagePath.empty()) {
             if (stato.selected_balls == 0) {
-                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedSphere)) {
+                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedSphere, stato.font)) {
                     stato.window.close();
                 }
                 stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
+                update_sphere_data(ball1_description[0], ball1_description[1], ball1_description[2], selectedSphere, true);
                 stato.selected_balls = 1;
             }
             else if (stato.selected_balls == 1) {
-                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedSphere)) {
+                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedSphere, stato.font)) {
                     stato.window.close();
                 }
                 stato.ball2.ball.setPosition(sf::Vector2f(890.f, 640.f));
+                update_sphere_data(ball2_description[0], ball2_description[1], ball2_description[2], selectedSphere, false);
                 stato.selected_balls = 2;
             }
         }
@@ -231,9 +296,9 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent) {
 }
 
 
-////////////////
-// Ausiliarie //
-////////////////
+////////////
+// loader //
+////////////
 
 
 // Può ritornare errore in caso di file mancante
@@ -320,7 +385,7 @@ std::vector<Sphere> spheres_loader(State& stato) {
 
     // Configurazione sfere
     auto setupSphere = [&stato] (Sphere& sphere, SphereData dati, sf::Vector2f pos) {
-        if (sphere.sphere_loader(radius_sphere_select, dati)) {
+        if (sphere.sphere_loader(radius_sphere_select, dati, stato.font)) {
             sphere.ball.setPosition(pos);
         }
         else {
@@ -382,12 +447,12 @@ std::vector<sf::Text> character_names_loader (sf::Font& font) {
     };
 
     // Inizializzazione e modifica valori
-    sf::Text character_name1 (font, "Boxer Sphere", font_size);
-    sf::Text character_name2 (font, "Cowboy Sphere", font_size);
-    sf::Text character_name3 (font, "Chef Sphere", font_size);
-    sf::Text character_name4 (font, "Killer Sphere", font_size);
-    sf::Text character_name5 (font, "Magic Sphere", font_size);
-    sf::Text character_name6 (font, "Hunter Sphere", font_size);
+    sf::Text character_name1 (font, boxer.name + " Sphere", font_size);
+    sf::Text character_name2 (font, cowboy.name + " Sphere", font_size);
+    sf::Text character_name3 (font, chef.name + " Sphere", font_size);
+    sf::Text character_name4 (font, killer.name + " Sphere", font_size);
+    sf::Text character_name5 (font, magic.name + " Sphere", font_size);
+    sf::Text character_name6 (font, hunter.name + " Sphere", font_size);
 
     setupName(character_name1, sf::Vector2f(240.f, 200.f));
     setupName(character_name2, sf::Vector2f(500.f, 200.f));
@@ -418,9 +483,8 @@ int main () {
     State stato (window_width, window_height, window_title);
 
     // Font e testi
-    sf::Font font = font_loader(stato);
-    sf::Text titleText = title_loader(font);
-    sf::Text subtitleText = subtitle_loader(font);
+    sf::Text titleText = title_loader(stato.font);
+    sf::Text subtitleText = subtitle_loader(stato.font);
 
     // Rettangoli
     std::vector<sf::RectangleShape> sphere_selects = sphere_selects_loader();
@@ -432,7 +496,11 @@ int main () {
     std::vector<sf::VertexArray> lines = lines_loader();
 
     // Nomi personaggi
-    std::vector<sf::Text> character_names = character_names_loader(font);
+    std::vector<sf::Text> character_names = character_names_loader(stato.font);
+
+    // Descrizione sfere
+    std::vector<sf::Text> ball1_description(3, sf::Text(stato.font));
+    std::vector<sf::Text> ball2_description(3, sf::Text(stato.font));
 
 
     // Loop principale
@@ -446,8 +514,8 @@ int main () {
             [&stato](const sf::Event::KeyPressed& keyEvent) { 
                 handle(stato, keyEvent); 
             },
-            [&stato](const sf::Event::MouseButtonPressed& mouseEvent) {
-                handle(stato, mouseEvent);
+            [&stato, &ball1_description, &ball2_description](const sf::Event::MouseButtonPressed& mouseEvent) {
+                handle(stato, mouseEvent, ball1_description, ball2_description);
             }
         );
         
@@ -458,7 +526,7 @@ int main () {
         }
         else if (stato.schermata == 1) {
             stato.window.clear(sf::Color(0, 255, 255));
-            drawSelectScreen(stato, sphere_selects, spheres ,lines, character_names);
+            drawSelectScreen(stato, sphere_selects, spheres ,lines, character_names, ball1_description, ball2_description);
         }
         stato.window.display();
     }
