@@ -17,6 +17,7 @@ const float radius_sphere_select = 40;
 const float radius_sphere_selected = 70;
 const unsigned vertices = 100;
 const float thickness = -3.f;
+const sf::Color pressEnterColor = sf::Color(180, 180, 180);
 
 
 
@@ -55,7 +56,7 @@ struct Sphere {
     sf::CircleShape ball;
     sf::Texture image;
 
-    bool sphere_loader(float radius, SphereData dati, sf::Font font) {
+    bool sphere_loader(float radius, SphereData dati) {
         // Informazioni
         this->dati = dati;
 
@@ -180,8 +181,9 @@ void drawTitle (State& stato, const sf::Text& titleText, const sf::Text& subtitl
 
 // Character Select
 void drawSelectScreen ( State& stato, std::vector<sf::RectangleShape>& sphere_selects, std::vector<Sphere>& spheres, 
-                        std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names, 
-                        std::vector<sf::Text>& ball1_description, std::vector<sf::Text>& ball2_description) {
+                        std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names, std::vector<sf::Text>& ball1_description, 
+                        std::vector<sf::Text>& ball2_description, sf::Text pressEnterText) {
+    stato.window.draw(pressEnterText);
     for (const auto& sphere_select : sphere_selects) {
         stato.window.draw(sphere_select);
     }
@@ -220,7 +222,8 @@ void handle (State& stato, const sf::Event::Closed& closeEvent) {
 }
 
 // Pressione tasto
-void handle (State& stato, const sf::Event::KeyPressed& keyEvent) {
+void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pressEnterText) {
+    pressEnterText.setFillColor(pressEnterColor);
     if (stato.schermata == 0) {
         if (keyEvent.code != sf::Keyboard::Key::Escape) {
             stato.schermata = 1;
@@ -242,7 +245,7 @@ void handle (State& stato, const sf::Event::KeyPressed& keyEvent) {
 }
 
 // Click mouse
-void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std::vector<sf::Text>& ball1_description, std::vector<sf::Text>& ball2_description) {
+void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std::vector<sf::Text>& ball1_description, std::vector<sf::Text>& ball2_description, sf::Text& pressEnterText) {
     if (stato.schermata == 0) {
         stato.schermata = 1;
     }
@@ -276,7 +279,7 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std:
         }
         if (!selectedSphere.imagePath.empty()) {
             if (stato.selected_balls == 0) {
-                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedSphere, stato.font)) {
+                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedSphere)) {
                     stato.window.close();
                 }
                 stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
@@ -284,11 +287,12 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std:
                 stato.selected_balls = 1;
             }
             else if (stato.selected_balls == 1) {
-                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedSphere, stato.font)) {
+                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedSphere)) {
                     stato.window.close();
                 }
                 stato.ball2.ball.setPosition(sf::Vector2f(890.f, 640.f));
                 update_sphere_data(ball2_description[0], ball2_description[1], ball2_description[2], selectedSphere, false);
+                pressEnterText.setFillColor(sf::Color::Black);
                 stato.selected_balls = 2;
             }
         }
@@ -340,6 +344,20 @@ sf::Text subtitle_loader (sf::Font& font) {
     return subtitleText;
 }
 
+sf::Text press_enter_loader (sf::Font& font) {
+    // Stile
+    sf::Text pressEnterText(font, "Press Enter to start", 20);
+    pressEnterText.setFillColor(pressEnterColor);
+
+    // Posizione
+    sf::FloatRect subBounds = pressEnterText.getLocalBounds();
+    pressEnterText.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
+                            subBounds.position.y + subBounds.size.y / 2.0f});
+    pressEnterText.setPosition({500.f, 470.f});
+
+    return pressEnterText;
+}
+
 std::vector<sf::RectangleShape> sphere_selects_loader() {
     // Variabili
     std::vector<sf::RectangleShape> sphere_selects;
@@ -385,7 +403,7 @@ std::vector<Sphere> spheres_loader(State& stato) {
 
     // Configurazione sfere
     auto setupSphere = [&stato] (Sphere& sphere, SphereData dati, sf::Vector2f pos) {
-        if (sphere.sphere_loader(radius_sphere_select, dati, stato.font)) {
+        if (sphere.sphere_loader(radius_sphere_select, dati)) {
             sphere.ball.setPosition(pos);
         }
         else {
@@ -405,25 +423,50 @@ std::vector<Sphere> spheres_loader(State& stato) {
 
 std::vector<sf::VertexArray> lines_loader () {
     // Variabili
-    std::vector<sf::VertexArray> lines;
+    std::vector<sf::VertexArray> lines (2);
     sf::VertexArray line1(sf::PrimitiveType::Lines, 2);
     sf::VertexArray line2(sf::PrimitiveType::Lines, 2);
+    sf::VertexArray line3(sf::PrimitiveType::Lines, 2);
+    sf::VertexArray line4(sf::PrimitiveType::Lines, 2);
+    sf::VertexArray line5(sf::PrimitiveType::Lines, 2);
+    sf::Color color = sf::Color::White;
 
     // Prima linea
     line1[0].position = sf::Vector2f(0.f, 440.f);
-    line1[0].color = sf::Color::White;
+    line1[0].color = color;
     line1[1].position = sf::Vector2f(window_width, 440.f);
-    line1[1].color = sf::Color::White;
+    line1[1].color = color;
 
     // Seconda linea
-    line2[0].position = sf::Vector2f(500.f, 440.f);
-    line2[0].color = sf::Color::White;
-    line2[1].position = sf::Vector2f(500.f, 800.f);
-    line2[1].color = sf::Color::White;
+    line2[0].position = sf::Vector2f(500.f, 500.f);
+    line2[0].color = color;
+    line2[1].position = sf::Vector2f(500.f, window_height);
+    line2[1].color = color;
+
+    // Terza linea
+    line3[0].position = sf::Vector2f(350.f, 500.f);
+    line3[0].color = color;
+    line3[1].position = sf::Vector2f(650.f, 500.f);
+    line3[1].color = color;
+
+    // Quarta linea
+    line4[0].position = sf::Vector2f(350.f, 440.f);
+    line4[0].color = color;
+    line4[1].position = sf::Vector2f(350.f, 500.f);
+    line4[1].color = color;
+
+    // Quinta linea
+    line5[0].position = sf::Vector2f(650.f, 440.f);
+    line5[0].color = color;
+    line5[1].position = sf::Vector2f(650.f, 500.f);
+    line5[1].color = color;
 
     // Push
     lines.push_back(line1);
     lines.push_back(line2);
+    lines.push_back(line3);
+    lines.push_back(line4);
+    lines.push_back(line5);
 
     return lines;
 }
@@ -485,6 +528,7 @@ int main () {
     // Font e testi
     sf::Text titleText = title_loader(stato.font);
     sf::Text subtitleText = subtitle_loader(stato.font);
+    sf::Text pressEnterText = press_enter_loader(stato.font);
 
     // Rettangoli
     std::vector<sf::RectangleShape> sphere_selects = sphere_selects_loader();
@@ -511,11 +555,11 @@ int main () {
             [&stato](const sf::Event::Closed& closeEvent) { 
                 handle(stato, closeEvent); 
             },
-            [&stato](const sf::Event::KeyPressed& keyEvent) { 
-                handle(stato, keyEvent); 
+            [&stato, &pressEnterText](const sf::Event::KeyPressed& keyEvent) { 
+                handle(stato, keyEvent, pressEnterText); 
             },
-            [&stato, &ball1_description, &ball2_description](const sf::Event::MouseButtonPressed& mouseEvent) {
-                handle(stato, mouseEvent, ball1_description, ball2_description);
+            [&stato, &ball1_description, &ball2_description, &pressEnterText](const sf::Event::MouseButtonPressed& mouseEvent) {
+                handle(stato, mouseEvent, ball1_description, ball2_description, pressEnterText);
             }
         );
         
@@ -526,7 +570,7 @@ int main () {
         }
         else if (stato.schermata == 1) {
             stato.window.clear(sf::Color(0, 255, 255));
-            drawSelectScreen(stato, sphere_selects, spheres ,lines, character_names, ball1_description, ball2_description);
+            drawSelectScreen(stato, sphere_selects, spheres ,lines, character_names, ball1_description, ball2_description, pressEnterText);
         }
         stato.window.display();
     }
