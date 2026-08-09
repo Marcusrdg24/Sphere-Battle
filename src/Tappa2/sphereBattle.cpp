@@ -5,6 +5,8 @@
 #include <string>
 #include <iostream>
 
+
+
 ///////////////////////
 // Variabili Globali //
 ///////////////////////
@@ -97,9 +99,10 @@ struct State {
         window.setFramerateLimit(max_frame_rate);
         window.setMinimumSize(window.getSize());
 
-        // CARICAMENTO FONT DIRETTAMENTE NELLO STATO:
+        // Font
         if (!font.openFromFile("Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
             std::cerr << "Errore nel caricamento del font!" << std::endl;
+            window.close();
         }
     }
 };
@@ -303,17 +306,6 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std:
 ////////////
 // loader //
 ////////////
-
-
-// Può ritornare errore in caso di file mancante
-sf::Font font_loader (State& stato) {
-    sf::Font font;
-    if (!font.openFromFile("Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
-        std::cerr << "Errore nel caricamento del font!" << std::endl;
-        stato.window.close();
-    }
-    return font;
-}
 
 sf::Text title_loader (sf::Font& font) {
     // Stile
