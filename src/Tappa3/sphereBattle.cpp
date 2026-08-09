@@ -15,6 +15,7 @@ const unsigned window_height = 800;
 const float max_frame_rate = 60;
 const float radius_sphere_select = 40;
 const float radius_sphere_selected = 70;
+const float radius_sphere_simulation = 40;
 const unsigned vertices = 100;
 const float thickness = -3.f;
 const sf::Color pressEnterColor = sf::Color(180, 180, 180);
@@ -121,14 +122,6 @@ struct State {
 // Ausiliarie //
 ////////////////
 
-void unselect_ball1 (State& stato) {
-    stato.selected_balls = 0;
-}
-
-void unselect_ball2 (State& stato) {
-    stato.selected_balls = 1;
-}
-
 void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attackText, const SphereData dati, bool isP1) {
     unsigned font_size_title = 40;
     unsigned font_size_body = 23;
@@ -174,7 +167,7 @@ void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attack
     }
 }
 
-void update_arena_text (State& stato, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
+void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
     stato.schermata = 2;
     
     // Variabili
@@ -209,13 +202,27 @@ void update_arena_text (State& stato, std::vector<sf::Text>& balls_name, std::ve
     balls_health[0].setPosition({122.f, 700.f});
 
     // Seconda vita
-    balls_health[1].setString(std::to_string(stato.ball1.health));
+    balls_health[1].setString(std::to_string(stato.ball2.health));
     balls_health[1].setCharacterSize(font_size);
     balls_health[1].setFillColor(textColor);
     sf::FloatRect health2Bounds = balls_health[1].getLocalBounds();
     balls_health[1].setOrigin({health2Bounds.position.x + health2Bounds.size.x / 2.0f, 
                         health2Bounds.position.y + health2Bounds.size.y / 2.0f});
     balls_health[1].setPosition({window_width - 122.f, 700.f});
+
+    // Prima sfera
+    stato.ball1.ball.setRadius(radius_sphere_simulation);
+    sf::FloatRect ball1Bounds = stato.ball1.ball.getLocalBounds();
+    stato.ball1.ball.setOrigin({ball1Bounds.position.x + ball1Bounds.size.x / 2.0f, 
+                        ball1Bounds.position.y + ball1Bounds.size.y / 2.0f});
+    stato.ball1.ball.setPosition({350.f, 400.f});
+
+    // Seconda sfera
+    stato.ball2.ball.setRadius(radius_sphere_simulation);
+    sf::FloatRect ball2Bounds = stato.ball2.ball.getLocalBounds();
+    stato.ball2.ball.setOrigin({ball2Bounds.position.x + ball2Bounds.size.x / 2.0f, 
+                        ball2Bounds.position.y + ball2Bounds.size.y / 2.0f});
+    stato.ball2.ball.setPosition({650.f, 400.f});
 }
 
 
@@ -275,6 +282,8 @@ void drawBattleSimulation(  State& stato, sf::RectangleShape arena, sf::Rectangl
     for (const auto& ball_health : balls_health) {
         stato.window.draw(ball_health);
     }
+    stato.window.draw(stato.ball1.ball);
+    stato.window.draw(stato.ball2.ball);
 }
 
 
@@ -302,15 +311,15 @@ void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pres
                 stato.schermata = 0;
             }
             else if (stato.selected_balls == 1) {
-                unselect_ball1(stato);
+                stato.selected_balls = 0;
             }
             else if (stato.selected_balls == 2) {
-                unselect_ball2(stato);
+                stato.selected_balls = 1;
             }
         }
         if (keyEvent.code == sf::Keyboard::Key::Enter) {
             if (stato.selected_balls == 2) {
-                update_arena_text (stato, balls_name, balls_health);
+                initialize_arena (stato, balls_name, balls_health);
             }
         }
     }
@@ -353,7 +362,7 @@ void handle (   State& stato, const sf::Event::MouseButtonPressed& mouseEvent, s
 
         // Avvio simulazione
         else if (pos.y > 440.f && pos.y < 500.f && pos.x > 350 && pos.x < 650) {
-            update_arena_text (stato, balls_name, balls_health);
+            initialize_arena (stato, balls_name, balls_health);
         }
 
         // Aggiornamento informazioni personaggio
