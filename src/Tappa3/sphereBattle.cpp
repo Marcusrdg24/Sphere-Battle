@@ -55,7 +55,8 @@ struct Sphere {
     SphereData dati;
     sf::CircleShape ball;
     sf::Texture image;
-    int health = 0;
+    int max_health = 1000;
+    int health = 1000;
 
     bool sphere_loader(float radius, SphereData dati) {
         // Informazioni
@@ -173,6 +174,50 @@ void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attack
     }
 }
 
+void update_arena_text (State& stato, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
+    stato.schermata = 2;
+    
+    // Variabili
+    unsigned font_size = 30;
+    sf::Color textColor = sf::Color::Black;
+
+    // Primo nome
+    balls_name[0].setString(stato.ball1.dati.name);
+    balls_name[0].setCharacterSize(font_size);
+    balls_name[0].setFillColor(textColor);
+    sf::FloatRect name1Bounds = balls_name[0].getLocalBounds();
+    balls_name[0].setOrigin({name1Bounds.position.x + name1Bounds.size.x / 2.0f, 
+                        name1Bounds.position.y + name1Bounds.size.y / 2.0f});
+    balls_name[0].setPosition({122.f, 100.f});
+
+    // Secondo nome
+    balls_name[1].setString(stato.ball2.dati.name);
+    balls_name[1].setCharacterSize(font_size);
+    balls_name[1].setFillColor(textColor);
+    sf::FloatRect name2Bounds = balls_name[1].getLocalBounds();
+    balls_name[1].setOrigin({name2Bounds.position.x + name2Bounds.size.x / 2.0f, 
+                        name2Bounds.position.y + name2Bounds.size.y / 2.0f});
+    balls_name[1].setPosition({window_width - 122.f, 100.f});
+
+    // Prima vita
+    balls_health[0].setString(std::to_string(stato.ball1.health));
+    balls_health[0].setCharacterSize(font_size);
+    balls_health[0].setFillColor(textColor);
+    sf::FloatRect health1Bounds = balls_health[0].getLocalBounds();
+    balls_health[0].setOrigin({health1Bounds.position.x + health1Bounds.size.x / 2.0f, 
+                        health1Bounds.position.y + health1Bounds.size.y / 2.0f});
+    balls_health[0].setPosition({122.f, 700.f});
+
+    // Seconda vita
+    balls_health[1].setString(std::to_string(stato.ball1.health));
+    balls_health[1].setCharacterSize(font_size);
+    balls_health[1].setFillColor(textColor);
+    sf::FloatRect health2Bounds = balls_health[1].getLocalBounds();
+    balls_health[1].setOrigin({health2Bounds.position.x + health2Bounds.size.x / 2.0f, 
+                        health2Bounds.position.y + health2Bounds.size.y / 2.0f});
+    balls_health[1].setPosition({window_width - 122.f, 700.f});
+}
+
 
 
 //////////
@@ -218,12 +263,18 @@ void drawSelectScreen ( State& stato, std::vector<sf::RectangleShape>& sphere_se
 
 // Battle Simulation
 void drawBattleSimulation(  State& stato, sf::RectangleShape arena, sf::RectangleShape health_container1, sf::RectangleShape health_container2,
-                            sf::RectangleShape health_bar1, sf::RectangleShape health_bar2) {
+                            sf::RectangleShape health_bar1, sf::RectangleShape health_bar2, std::vector<sf::Text> balls_name, std::vector<sf::Text> balls_health) {
     stato.window.draw(arena);
     stato.window.draw(health_container1);
     stato.window.draw(health_container2);
     stato.window.draw(health_bar1);
     stato.window.draw(health_bar2);
+    for (const auto& ball_name : balls_name) {
+        stato.window.draw(ball_name);
+    }
+    for (const auto& ball_health : balls_health) {
+        stato.window.draw(ball_health);
+    }
 }
 
 
@@ -238,7 +289,7 @@ void handle (State& stato, const sf::Event::Closed& closeEvent) {
 }
 
 // Pressione tasto
-void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pressEnterText) {
+void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pressEnterText, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
     pressEnterText.setFillColor(pressEnterColor);
     if (stato.schermata == 0) {
         if (keyEvent.code != sf::Keyboard::Key::Escape) {
@@ -259,14 +310,15 @@ void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pres
         }
         if (keyEvent.code == sf::Keyboard::Key::Enter) {
             if (stato.selected_balls == 2) {
-                stato.schermata = 2;
+                update_arena_text (stato, balls_name, balls_health);
             }
         }
     }
 }
 
 // Click mouse
-void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std::vector<sf::Text>& ball1_description, std::vector<sf::Text>& ball2_description, sf::Text& pressEnterText) {
+void handle (   State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std::vector<sf::Text>& ball1_description, 
+                std::vector<sf::Text>& ball2_description, sf::Text& pressEnterText, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
     if (stato.schermata == 0) {
         stato.schermata = 1;
     }
@@ -301,7 +353,7 @@ void handle (State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std:
 
         // Avvio simulazione
         else if (pos.y > 440.f && pos.y < 500.f && pos.x > 350 && pos.x < 650) {
-            stato.schermata = 2;
+            update_arena_text (stato, balls_name, balls_health);
         }
 
         // Aggiornamento informazioni personaggio
@@ -635,11 +687,11 @@ int main () {
             [&stato](const sf::Event::Closed& closeEvent) { 
                 handle(stato, closeEvent); 
             },
-            [&stato, &CS_pressEnterText](const sf::Event::KeyPressed& keyEvent) { 
-                handle(stato, keyEvent, CS_pressEnterText); 
+            [&stato, &CS_pressEnterText, &BS_balls_name, &BS_balls_health](const sf::Event::KeyPressed& keyEvent) { 
+                handle(stato, keyEvent, CS_pressEnterText, BS_balls_name, BS_balls_health); 
             },
-            [&stato, &CS_ball1_description, &CS_ball2_description, &CS_pressEnterText](const sf::Event::MouseButtonPressed& mouseEvent) {
-                handle(stato, mouseEvent, CS_ball1_description, CS_ball2_description, CS_pressEnterText);
+            [&stato, &CS_ball1_description, &CS_ball2_description, &CS_pressEnterText, &BS_balls_name, &BS_balls_health](const sf::Event::MouseButtonPressed& mouseEvent) {
+                handle(stato, mouseEvent, CS_ball1_description, CS_ball2_description, CS_pressEnterText, BS_balls_name, BS_balls_health);
             }
         );
         
@@ -654,7 +706,7 @@ int main () {
         }
         else if (stato.schermata == 2) {
             stato.window.clear(sf::Color(0, 255, 255));
-            drawBattleSimulation(stato, BS_arena, BS_health_container1, BS_health_container2, BS_health_bar1, BS_health_bar2);
+            drawBattleSimulation(stato, BS_arena, BS_health_container1, BS_health_container2, BS_health_bar1, BS_health_bar2, BS_balls_name, BS_balls_health);
         }
         stato.window.display();
     }
