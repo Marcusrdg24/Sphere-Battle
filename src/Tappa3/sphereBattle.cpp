@@ -4,21 +4,56 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <cstdlib>
+
+
 
 ///////////////////////
 // Variabili Globali //
 ///////////////////////
 
+// Informazioni window
 const char* window_title = "Sphere Battle";
 const unsigned window_width = 1000;
 const unsigned window_height = 800;
 const float max_frame_rate = 60;
+
+// Informazioni sfere
 const float radius_sphere_select = 40;
 const float radius_sphere_selected = 70;
 const float radius_sphere_simulation = 40;
 const unsigned vertices = 100;
+const int speed = 5;
+
+// Informazioni bordi
 const float thickness = -3.f;
+
+// Informazioni arena
+const float left_wall = 250.f;
+const float right_wall = 750.f;
+const float top_wall = 150.f;
+const float bottom_wall = 650.f;
+
+// Informazioni colori
 const sf::Color pressEnterColor = sf::Color(180, 180, 180);
+
+
+
+/////////////////
+// Riflessioni //
+/////////////////
+
+sf::Angle reflect_horizontal (sf::Angle a) { // Presa dal laboratorio
+    sf::Vector2f v(1.0f, a);
+    v.x = -v.x;
+    return v.angle();
+}
+
+sf::Angle reflect_vertical (sf::Angle a) { // Presa dal laboratorio
+    sf::Vector2f v(1.0f, a);
+    v.y = -v.y;
+    return v.angle();
+}
 
 
 
@@ -58,6 +93,7 @@ struct Sphere {
     sf::Texture image;
     int max_health = 1000;
     int health = 1000;
+    sf::Angle angle;
 
     bool sphere_loader(float radius, SphereData dati) {
         // Informazioni
@@ -81,6 +117,11 @@ struct Sphere {
                         bounds.position.y + bounds.size.y / 2.0f});
         return true;
     }
+
+    void move () {
+        sf::Vector2f displacement (speed, angle);
+        ball.setPosition(ball.getPosition() + displacement);
+    }
 };
 
 struct State {
@@ -89,7 +130,7 @@ struct State {
     Sphere ball1;
     Sphere ball2;
     unsigned selected_balls = 0;
-    int schermata = 0; // 0 = Title Screen, 1 = Character Sekect, 2 = Battle Simulation, 3 = Win Screen
+    int schermata = 0; // 0 = Title Screen, 1 = Character Select, 2 = Battle Simulation, 3 = Win Screen
 
     State() = default;
 
@@ -114,6 +155,45 @@ struct State {
             window.close();
         }
     }
+
+    void collisions () {
+        // Controllo collisione
+        auto checkWallCollisions = [] (Sphere& sphere) {
+            // Variabili
+            sf::Vector2f pos = sphere.ball.getPosition();
+            sf::Vector2f dir(1.0f, sphere.angle);
+
+            // Muro sinistro
+            if (pos.x - radius_sphere_simulation <= left_wall && dir.x < 0) {
+                sphere.angle = reflect_horizontal(sphere.angle);
+                sphere.ball.setPosition({left_wall + radius_sphere_simulation, pos.y});
+            }
+
+            // Muro destro
+            else if (pos.x + radius_sphere_simulation >= right_wall && dir.x > 0) {
+                sphere.angle = reflect_horizontal(sphere.angle);
+                sphere.ball.setPosition({right_wall - radius_sphere_simulation, pos.y});
+            }
+
+            pos = sphere.ball.getPosition();
+            dir = sf::Vector2f(1.0f, sphere.angle);
+
+            // Muro superiore
+            if (pos.y - radius_sphere_simulation <= top_wall && dir.y < 0) {
+                sphere.angle = reflect_vertical(sphere.angle);
+                sphere.ball.setPosition({pos.x, top_wall + radius_sphere_simulation});
+            }
+
+            // Muro inferiore
+            else if (pos.y + radius_sphere_simulation >= bottom_wall && dir.y > 0) {
+                sphere.angle = reflect_vertical(sphere.angle);
+                sphere.ball.setPosition({pos.x, bottom_wall - radius_sphere_simulation});
+            }
+        };
+
+        checkWallCollisions(ball1);
+        checkWallCollisions(ball2);
+    }
 };
 
 
@@ -122,7 +202,7 @@ struct State {
 // Ausiliarie //
 ////////////////
 
-void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attackText, const SphereData dati, bool isP1) {
+void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attackText, const SphereData& dati, bool isP1) {
     unsigned font_size_title = 40;
     unsigned font_size_body = 23;
     sf::Color textColor = sf::Color::Black;
@@ -216,6 +296,7 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
     stato.ball1.ball.setOrigin({ball1Bounds.position.x + ball1Bounds.size.x / 2.0f, 
                         ball1Bounds.position.y + ball1Bounds.size.y / 2.0f});
     stato.ball1.ball.setPosition({350.f, 400.f});
+    stato.ball1.angle = sf::degrees(rand() % 360);
 
     // Seconda sfera
     stato.ball2.ball.setRadius(radius_sphere_simulation);
@@ -223,6 +304,13 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
     stato.ball2.ball.setOrigin({ball2Bounds.position.x + ball2Bounds.size.x / 2.0f, 
                         ball2Bounds.position.y + ball2Bounds.size.y / 2.0f});
     stato.ball2.ball.setPosition({650.f, 400.f});
+    stato.ball2.angle = sf::degrees(rand() % 360);
+}
+
+void moveGame (State& stato) {
+    stato.collisions();
+    stato.ball1.move();
+    stato.ball2.move();
 }
 
 
@@ -231,8 +319,8 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
 // Draw //
 //////////
 
-// Schermata del titolo
-void drawTitle (State& stato, const sf::Text& titleText, const sf::Text& subtitleText) {
+// Title Screen
+void drawTitleScreen (State& stato, const sf::Text& titleText, const sf::Text& subtitleText) {
     stato.window.draw(titleText);
     stato.window.draw(subtitleText);
 }
@@ -282,6 +370,7 @@ void drawBattleSimulation(  State& stato, sf::RectangleShape arena, sf::Rectangl
     for (const auto& ball_health : balls_health) {
         stato.window.draw(ball_health);
     }
+    moveGame(stato);
     stato.window.draw(stato.ball1.ball);
     stato.window.draw(stato.ball2.ball);
 }
@@ -391,7 +480,7 @@ void handle (   State& stato, const sf::Event::MouseButtonPressed& mouseEvent, s
 
 
 ////////////
-// loader //
+// Loader //
 ////////////
 
 // Title Screen
@@ -707,7 +796,7 @@ int main () {
         // Display
         if (stato.schermata == 0) {
             stato.window.clear(sf::Color::Black);
-            drawTitle(stato, TS_titleText, TS_subtitleText);
+            drawTitleScreen(stato, TS_titleText, TS_subtitleText);
         }
         else if (stato.schermata == 1) {
             stato.window.clear(sf::Color(0, 255, 255));
