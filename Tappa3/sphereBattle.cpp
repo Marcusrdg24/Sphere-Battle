@@ -569,35 +569,23 @@ std::vector<sf::RectangleShape> CS_sphere_selects_loader() {
     // Variabili
     std::vector<sf::RectangleShape> sphere_selects;
     sphere_selects.reserve(6);
-    sf::Vector2f select_size(120.f, 120.f);
+    const sf::Vector2f select_size(120.f, 120.f);
 
-    // Configurazione select
-    auto setupSelect = [select_size] (sf::RectangleShape& sphere_select, sf::Vector2f pos) {
-        sphere_select.setSize(select_size);
+    // Posizioni
+    sf::Vector2f pos[6] = {
+        {180.f, 40.f},  {440.f, 40.f},  {700.f, 40.f},
+        {180.f, 240.f}, {440.f, 240.f}, {700.f, 240.f}
+    };
+
+    // Creazione rettangoli e inserimento nel vettore
+    for (int i = 0; i < 6; i++) {
+        sf::RectangleShape sphere_select(select_size);
         sphere_select.setFillColor(sf::Color::Transparent);
         sphere_select.setOutlineColor(sf::Color::Black);
         sphere_select.setOutlineThickness(-thickness);
-        sphere_select.setPosition(pos);
-    };
-
-    // Inizializzazione e modifica valori
-    sf::RectangleShape sphere_select1, sphere_select2, sphere_select3;
-    sf::RectangleShape sphere_select4, sphere_select5, sphere_select6;
-
-    setupSelect(sphere_select1, sf::Vector2f(180.f, 40.f));
-    setupSelect(sphere_select2, sf::Vector2f(440.f, 40.f));
-    setupSelect(sphere_select3, sf::Vector2f(700.f, 40.f));
-    setupSelect(sphere_select4, sf::Vector2f(180.f, 240.f));
-    setupSelect(sphere_select5, sf::Vector2f(440.f, 240.f));
-    setupSelect(sphere_select6, sf::Vector2f(700.f, 240.f));
-
-    // Push 
-    sphere_selects.push_back(sphere_select1);
-    sphere_selects.push_back(sphere_select2);
-    sphere_selects.push_back(sphere_select3);
-    sphere_selects.push_back(sphere_select4);
-    sphere_selects.push_back(sphere_select5);
-    sphere_selects.push_back(sphere_select6);
+        sphere_select.setPosition(pos[i]);
+        sphere_selects.push_back(sphere_select);
+    }
 
     return sphere_selects;
 }
@@ -628,50 +616,26 @@ std::vector<Sphere> CS_spheres_loader(State& stato) { // Può ritornare errore i
 
 std::vector<sf::VertexArray> CS_lines_loader () {
     // Variabili
-    std::vector<sf::VertexArray> lines(5);
-    sf::VertexArray line1(sf::PrimitiveType::Lines, 2);
-    sf::VertexArray line2(sf::PrimitiveType::Lines, 2);
-    sf::VertexArray line3(sf::PrimitiveType::Lines, 2);
-    sf::VertexArray line4(sf::PrimitiveType::Lines, 2);
-    sf::VertexArray line5(sf::PrimitiveType::Lines, 2);
-    sf::Color color = sf::Color::White;
+    std::vector<sf::VertexArray> lines;
+    lines.reserve(5);
+    const sf::Color color = sf::Color::White;
 
-    // Prima linea
-    line1[0].position = sf::Vector2f(0.f, 440.f);
-    line1[0].color = color;
-    line1[1].position = sf::Vector2f(window_width, 440.f);
-    line1[1].color = color;
-
-    // Seconda linea
-    line2[0].position = sf::Vector2f(500.f, 500.f);
-    line2[0].color = color;
-    line2[1].position = sf::Vector2f(500.f, window_height);
-    line2[1].color = color;
-
-    // Terza linea
-    line3[0].position = sf::Vector2f(350.f, 500.f);
-    line3[0].color = color;
-    line3[1].position = sf::Vector2f(650.f, 500.f);
-    line3[1].color = color;
-
-    // Quarta linea
-    line4[0].position = sf::Vector2f(350.f, 440.f);
-    line4[0].color = color;
-    line4[1].position = sf::Vector2f(350.f, 500.f);
-    line4[1].color = color;
-
-    // Quinta linea
-    line5[0].position = sf::Vector2f(650.f, 440.f);
-    line5[0].color = color;
-    line5[1].position = sf::Vector2f(650.f, 500.f);
-    line5[1].color = color;
-
-    // Push
-    lines.push_back(line1);
-    lines.push_back(line2);
-    lines.push_back(line3);
-    lines.push_back(line4);
-    lines.push_back(line5);
+    // Configurazione linee
+    auto setupLine = [color] (sf::Vector2f pos1, sf::Vector2f pos2) {
+        sf::VertexArray line(sf::PrimitiveType::Lines, 2);
+        line[0].position = pos1;
+        line[0].color = color;
+        line[1].position = pos2;
+        line[1].color = color;
+        return line;
+    };
+    
+    // Creazione linee e inserimento nel vettore
+    lines.push_back(setupLine({0.f, 440.f}, {window_width, 440.f}));
+    lines.push_back(setupLine({500.f, 500.f}, {500.f, window_height}));
+    lines.push_back(setupLine({350.f, 500.f}, {650.f, 500.f}));
+    lines.push_back(setupLine({350.f, 440.f}, {350.f, 500.f}));
+    lines.push_back(setupLine({650.f, 440.f}, {650.f, 500.f}));
 
     return lines;
 }
@@ -680,44 +644,35 @@ std::vector<sf::Text> CS_character_names_loader (sf::Font& font) {
     // variabili
     std::vector<sf::Text> character_names;
     character_names.reserve(6);
-    int font_size = 30;
+    const unsigned font_size = 30;
 
-    // Configurazione scritte
-    auto setupName = [] (sf::Text& character_name, sf::Vector2f pos) {
+    // Nomi
+    SphereData data[6] = {
+        boxer, cowboy, chef, killer, magic, hunter
+    };
+
+    // Posizioni
+    sf::Vector2f pos[6] = {
+        {240.f, 200.f}, {500.f, 200.f}, {760.f, 200.f},
+        {240.f, 400.f}, {500.f, 400.f}, {760.f, 400.f}
+    };
+
+    // Creazione nomi e inserimento nel vettore
+    for (int i = 0; i < 6; i++) {
+        sf::Text character_name(font, data[i].name + " Sphere", font_size);
+
         // Stile
         character_name.setFillColor(sf::Color::Black);
 
         // Posizione
-        sf::FloatRect subBounds = character_name.getLocalBounds();
-        character_name.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
-                                subBounds.position.y + subBounds.size.y / 2.f});
-        character_name.setPosition({pos.x, pos.y});
-    };
+        sf::FloatRect bounds = character_name.getLocalBounds();
+        character_name.setOrigin({bounds.position.x + bounds.size.x / 2.f, 
+                            bounds.position.y + bounds.size.y / 2.f});
+        character_name.setPosition(pos[i]);
 
-    // Inizializzazione e modifica valori
-    sf::Text character_name1 (font, boxer.name + " Sphere", font_size);
-    sf::Text character_name2 (font, cowboy.name + " Sphere", font_size);
-    sf::Text character_name3 (font, chef.name + " Sphere", font_size);
-    sf::Text character_name4 (font, killer.name + " Sphere", font_size);
-    sf::Text character_name5 (font, magic.name + " Sphere", font_size);
-    sf::Text character_name6 (font, hunter.name + " Sphere", font_size);
-
-    setupName(character_name1, sf::Vector2f(240.f, 200.f));
-    setupName(character_name2, sf::Vector2f(500.f, 200.f));
-    setupName(character_name3, sf::Vector2f(760.f, 200.f));
-    setupName(character_name4, sf::Vector2f(240.f, 400.f));
-    setupName(character_name5, sf::Vector2f(500.f, 400.f));
-    setupName(character_name6, sf::Vector2f(760.f, 400.f));
-
-    // Push
-    character_names.push_back(character_name1);
-    character_names.push_back(character_name2);
-    character_names.push_back(character_name3);
-    character_names.push_back(character_name4);
-    character_names.push_back(character_name5);
-    character_names.push_back(character_name6);
+        character_names.push_back(character_name);
+    }
     
-    // Stile
     return character_names;
 }
 
