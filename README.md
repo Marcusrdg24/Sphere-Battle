@@ -1,12 +1,12 @@
 # Compilazione
 Nella root del progetto:
 
-cmake --build build
+cmake -B build && cmake --build build
 
 # Esecuzione
-Nella root del progetto
+Nella cartella build del progetto:
 
-./build/bin/sphereBattle*n*
+./bin/sphereBattle*n*
 
 dove *n* rappresenta la tappa del progetto
 
