@@ -1,0 +1,848 @@
+#include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <cstdlib>
+#include <cmath>
+
+
+
+///////////////////////
+// Variabili Globali //
+///////////////////////
+
+// Informazioni window
+const char* window_title = "Sphere Battle";
+const unsigned window_width = 1000;
+const unsigned window_height = 800;
+const float max_frame_rate = 60;
+
+// Informazioni sfere
+const float radius_sphere_select = 40;
+const float radius_sphere_selected = 70;
+const float radius_sphere_simulation = 50;
+const unsigned vertices = 100;
+const int speed = 5;
+
+// Informazioni bordi
+const float thickness = -3.f;
+
+// Informazioni arena
+const float left_wall = 250.f;
+const float right_wall = 750.f;
+const float top_wall = 150.f;
+const float bottom_wall = 650.f;
+
+// Informazioni colori
+const sf::Color pressEnterColor = sf::Color(180, 180, 180);
+
+
+
+/////////////////
+// Riflessioni //
+/////////////////
+
+sf::Angle reflect_horizontal (sf::Angle a) { // Presa dal laboratorio
+    sf::Vector2f v(1.f, a);
+    v.x = -v.x;
+    return v.angle();
+}
+
+sf::Angle reflect_vertical (sf::Angle a) { // Presa dal laboratorio
+    sf::Vector2f v(1.f, a);
+    v.y = -v.y;
+    return v.angle();
+}
+
+
+
+////////////
+// Struct //
+////////////
+
+struct Health {
+    int maxHealth = 1000;
+    int health = maxHealth;
+    sf::RectangleShape healthBar;
+    
+    Health() = default;
+
+    Health (bool isP1) {
+        // Stile
+        healthBar.setSize(sf::Vector2f(100.f, 506.f));
+        healthBar.setFillColor(sf::Color(180, 180, 180));
+        
+        // Posizione
+        sf::FloatRect subBounds = healthBar.getLocalBounds();
+        healthBar.setOrigin({0.f, 506.f});
+        if (isP1) {
+            healthBar.setPosition({sf::Vector2f(72.f, window_height - 147.f)});
+        }
+        else {
+            healthBar.setPosition({sf::Vector2f(window_width - 172.f, window_height - 147.f)});
+        }
+    }
+
+    bool modifyHealth (int modifier) { // Ritorna vero se la pallina è morta
+        health -= modifier;
+        if (health < 0) {
+            health = 0;
+            return true;
+        }
+        else if (health > maxHealth) {
+            health = maxHealth;
+        }
+        float newHeight = (static_cast<float>(health) / maxHealth) * 506.f;
+        healthBar.setSize({100.f, newHeight});
+        healthBar.setOrigin({0.f, newHeight});
+        return false;
+    }
+};
+
+struct SphereData {
+    std::string name;
+    sf::Color color;
+    std::string imagePath;
+    std::string description;
+    std::string attackDescription;
+
+    SphereData() = default;
+
+    SphereData(std::string name, sf::Color color, std::string imagePath, std::string description, std::string attackDescription) {
+        this->name = name;
+        this->color = color;
+        this->imagePath = imagePath;
+        this->description = description;
+        this->attackDescription = attackDescription;
+    }
+};
+
+// Istanze di SphereData
+SphereData boxer ("Boxer", sf::Color(255, 176, 0), "../Utilities/Images/Orange_Glove.png", "Lottatore coraggioso", "Guantoni");
+SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "../Utilities/Images/Yellow_Hat.png", "Cowboy giustiziere", "Revolver");
+SphereData chef ("Chef", sf::Color(0, 255, 27), "../Utilities/Images/Green_Pan.png", "Cuoco formidabile", "Padella");
+SphereData killer ("Killer", sf::Color(255, 0, 0), "../Utilities/Images/Red_Knife.png", "Assassino spietato", "Coltello");
+SphereData magic ("Magic", sf::Color(67, 0, 255), "../Utilities/Images/Blue_Thunder.png", "Mago del clima", "Fulmini");
+SphereData hunter ("Hunter", sf::Color(252, 0, 255), "../Utilities/Images/Purple_Trap.png", "Cacciatore spietato", "Trappole");
+
+struct Sphere {
+    SphereData dati;
+    sf::CircleShape ball;
+    sf::Texture image;
+    Health health;
+    sf::Angle angle;
+
+    bool sphere_loader(float radius, SphereData dati) {
+        // Informazioni
+        this->dati = dati;
+
+        // Stile
+        if (!image.loadFromFile(dati.imagePath)) {
+            return false;
+        }
+        ball.setPointCount(vertices);
+        ball.setRadius(radius);
+        ball.setTexture(&image);
+        ball.setTextureRect(sf::IntRect({0, 0}, static_cast<sf::Vector2i>(image.getSize()))); // Generato da Gemini
+        ball.setFillColor(sf::Color::White);
+        ball.setOutlineColor(dati.color);
+        ball.setOutlineThickness(thickness);
+
+        // Posizione
+        sf::FloatRect bounds = ball.getLocalBounds();
+        ball.setOrigin({bounds.position.x + bounds.size.x / 2.f, 
+                        bounds.position.y + bounds.size.y / 2.f});
+        return true;
+    }
+
+    void move () {
+        sf::Vector2f displacement (speed, angle);
+        ball.setPosition(ball.getPosition() + displacement);
+    }
+};
+
+struct State {
+    sf::RenderWindow window;
+    sf::Font font;
+    Sphere ball1;
+    Sphere ball2;
+    unsigned selected_balls = 0;
+    int schermata = 0; // 0 = Title Screen, 1 = Character Select, 2 = Battle Simulation, 3 = Win Screen
+
+    State() = default;
+
+    State(unsigned w, unsigned h, std::string title) {
+        sf::ContextSettings settings;
+        settings.antiAliasingLevel = 4;
+
+        // Creazione Window
+        window = sf::RenderWindow(sf::VideoMode({w, h}), title, sf::Style::Default, sf::State::Windowed, settings);
+        window.setFramerateLimit(max_frame_rate);
+        window.setMinimumSize(window.getSize());
+
+        // Posizione Window (Generato da gemini)
+        sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+        int posX = static_cast<int>((desktop.size.x - w) / 2);
+        int posY = static_cast<int>((desktop.size.y - h) / 2);
+        window.setPosition(sf::Vector2i(posX, posY));
+
+        // Font
+        if (!font.openFromFile("../Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
+            std::cerr << "Errore nel caricamento del font!" << std::endl;
+            window.close();
+        }
+    }
+
+    void collisions () {
+        // Controllo collisione muri
+        auto checkWallCollisions = [this] (Sphere& sphere) {
+            // Variabili
+            sf::Vector2f pos = sphere.ball.getPosition();
+            sf::Vector2f dir(1.f, sphere.angle);
+
+            // Muro sinistro
+            if (pos.x - radius_sphere_simulation <= left_wall && dir.x < 0) {
+                sphere.angle = reflect_horizontal(sphere.angle);
+                if (sphere.health.modifyHealth(100)) {
+                    schermata = 3;
+                    return;
+                }
+                sphere.ball.setPosition({left_wall + radius_sphere_simulation, pos.y});
+            }
+
+            // Muro destro
+            else if (pos.x + radius_sphere_simulation >= right_wall && dir.x > 0) {
+                sphere.angle = reflect_horizontal(sphere.angle);
+                if (sphere.health.modifyHealth(100)) {
+                    schermata = 3;
+                    return;
+                }
+                sphere.ball.setPosition({right_wall - radius_sphere_simulation, pos.y});
+            }
+
+            pos = sphere.ball.getPosition();
+            dir = sf::Vector2f(1.f, sphere.angle);
+
+            // Muro superiore
+            if (pos.y - radius_sphere_simulation <= top_wall && dir.y < 0) {
+                sphere.angle = reflect_vertical(sphere.angle);
+                if (sphere.health.modifyHealth(100)) {
+                    schermata = 3;
+                    return;
+                }
+                sphere.ball.setPosition({pos.x, top_wall + radius_sphere_simulation});
+            }
+
+            // Muro inferiore
+            else if (pos.y + radius_sphere_simulation >= bottom_wall && dir.y > 0) {
+                sphere.angle = reflect_vertical(sphere.angle);
+                if (sphere.health.modifyHealth(100)) {
+                    schermata = 3;
+                    return;
+                }
+                sphere.ball.setPosition({pos.x, bottom_wall - radius_sphere_simulation});
+            }
+        };
+
+        checkWallCollisions(ball1);
+        checkWallCollisions(ball2);
+
+        // Controllo collisione sfere (Generato da Gemini)
+        sf::Vector2f pos1 = ball1.ball.getPosition();
+        sf::Vector2f pos2 = ball2.ball.getPosition();
+
+        // Distanze
+        sf::Vector2f delta = pos2 - pos1;
+        float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+        float minDistance = radius_sphere_simulation * 2.f;
+
+        // Scontro
+        if (distance < minDistance && distance > 0.f) {
+            // Vettore normalizzato
+            sf::Vector2f normal = delta / distance;
+
+            // Sovrapposizione
+            float overlap = 0.5f * (minDistance - distance);
+            ball1.ball.setPosition(pos1 - normal * overlap);
+            ball2.ball.setPosition(pos2 + normal * overlap);
+
+            // Vettori velocità
+            sf::Vector2f v1(1.f, ball1.angle);
+            sf::Vector2f v2(1.f, ball2.angle);
+
+            // Vettore relativo
+            sf::Vector2f vRel = v1 - v2;
+            float dotProduct = vRel.x * normal.x + vRel.y * normal.y;
+
+            // Impulso
+            if (dotProduct > 0.f) {
+                //Nuovi angoli
+                v1 -= dotProduct * normal;
+                v2 += dotProduct * normal;
+                ball1.angle = v1.angle();
+                ball2.angle = v2.angle();
+            }
+        }
+    }
+};
+
+
+
+////////////////
+// Ausiliarie //
+////////////////
+
+void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attackText, const SphereData& dati, bool isP1) {
+    unsigned font_size_title = 40;
+    unsigned font_size_body = 23;
+    sf::Color textColor = sf::Color::Black;
+
+    // Nome
+    nameText.setString(dati.name);
+    nameText.setCharacterSize(font_size_title);
+    nameText.setFillColor(textColor);
+    nameText.setStyle(sf::Text::Bold);
+
+    // Posizione
+    sf::FloatRect nameBounds = nameText.getLocalBounds();
+        nameText.setOrigin({nameBounds.position.x + nameBounds.size.x / 2.f, 
+                            nameBounds.position.y + nameBounds.size.y / 2.f});
+    if (isP1) {
+        nameText.setPosition({110.f, 530.f});
+    }
+    else {
+        nameText.setPosition({890.f, 530.f});
+    }
+
+    // Descrizione
+    descText.setString(dati.description);
+    descText.setCharacterSize(font_size_body);
+    descText.setFillColor(textColor);
+    if (isP1) {
+        descText.setPosition({210.f, 600.f});
+    }
+    else {
+        descText.setPosition({530.f, 600.f});
+    }
+
+    // Descrizione attacco
+    attackText.setString("Attacco: " + dati.attackDescription);
+    attackText.setCharacterSize(font_size_body);
+    attackText.setFillColor(textColor);
+    if (isP1) {
+        attackText.setPosition({210.f, 640.f});
+    }
+    else {
+        attackText.setPosition({530.f, 640.f});
+    }
+}
+
+void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
+    stato.schermata = 2;
+    
+    // Variabili
+    unsigned font_size = 30;
+    sf::Color textColor = sf::Color::Black;
+
+    // Primo nome
+    balls_name[0].setString(stato.ball1.dati.name);
+    balls_name[0].setCharacterSize(font_size);
+    balls_name[0].setFillColor(textColor);
+    sf::FloatRect name1Bounds = balls_name[0].getLocalBounds();
+    balls_name[0].setOrigin({name1Bounds.position.x + name1Bounds.size.x / 2.f, 
+                        name1Bounds.position.y + name1Bounds.size.y / 2.f});
+    balls_name[0].setPosition({122.f, 100.f});
+
+    // Secondo nome
+    balls_name[1].setString(stato.ball2.dati.name);
+    balls_name[1].setCharacterSize(font_size);
+    balls_name[1].setFillColor(textColor);
+    sf::FloatRect name2Bounds = balls_name[1].getLocalBounds();
+    balls_name[1].setOrigin({name2Bounds.position.x + name2Bounds.size.x / 2.f, 
+                        name2Bounds.position.y + name2Bounds.size.y / 2.f});
+    balls_name[1].setPosition({window_width - 122.f, 100.f});
+
+    // Prima vita
+    balls_health[0].setString(std::to_string(stato.ball1.health.health));
+    balls_health[0].setCharacterSize(font_size);
+    balls_health[0].setFillColor(textColor);
+    sf::FloatRect health1Bounds = balls_health[0].getLocalBounds();
+    balls_health[0].setOrigin({health1Bounds.position.x + health1Bounds.size.x / 2.f, 
+                        health1Bounds.position.y + health1Bounds.size.y / 2.f});
+    balls_health[0].setPosition({122.f, 700.f});
+
+    // Seconda vita
+    balls_health[1].setString(std::to_string(stato.ball2.health.health));
+    balls_health[1].setCharacterSize(font_size);
+    balls_health[1].setFillColor(textColor);
+    sf::FloatRect health2Bounds = balls_health[1].getLocalBounds();
+    balls_health[1].setOrigin({health2Bounds.position.x + health2Bounds.size.x / 2.f, 
+                        health2Bounds.position.y + health2Bounds.size.y / 2.f});
+    balls_health[1].setPosition({window_width - 122.f, 700.f});
+
+    // Prima sfera
+    stato.ball1.ball.setRadius(radius_sphere_simulation);
+    sf::FloatRect ball1Bounds = stato.ball1.ball.getLocalBounds();
+    stato.ball1.ball.setOrigin({ball1Bounds.position.x + ball1Bounds.size.x / 2.f, 
+                        ball1Bounds.position.y + ball1Bounds.size.y / 2.f});
+    stato.ball1.ball.setPosition({left_wall + radius_sphere_simulation + 40.f, 400.f});
+    stato.ball1.angle = sf::degrees(rand() % 360);
+    stato.ball1.health = Health(true);
+
+    // Seconda sfera
+    stato.ball2.ball.setRadius(radius_sphere_simulation);
+    sf::FloatRect ball2Bounds = stato.ball2.ball.getLocalBounds();
+    stato.ball2.ball.setOrigin({ball2Bounds.position.x + ball2Bounds.size.x / 2.f, 
+                        ball2Bounds.position.y + ball2Bounds.size.y / 2.f});
+    stato.ball2.ball.setPosition({right_wall - radius_sphere_simulation - 40.f, 400.f});
+    stato.ball2.angle = sf::degrees(rand() % 360);
+    stato.ball2.health = Health(false);
+}
+
+void moveGame (State& stato) {
+    stato.collisions();
+    stato.ball1.move();
+    stato.ball2.move();
+}
+
+
+
+//////////
+// Draw //
+//////////
+
+// Title Screen
+void drawTitleScreen (State& stato, const sf::Text& titleText, const sf::Text& subtitleText) {
+    stato.window.draw(titleText);
+    stato.window.draw(subtitleText);
+}
+
+// Character Select
+void drawSelectScreen ( State& stato, std::vector<sf::RectangleShape>& sphere_selects, std::vector<Sphere>& spheres, 
+                        std::vector<sf::VertexArray>& lines, std::vector<sf::Text>& character_names, std::vector<sf::Text>& ball1_description, 
+                        std::vector<sf::Text>& ball2_description, sf::Text pressEnterText) {
+    stato.window.draw(pressEnterText);
+    for (const auto& sphere_select : sphere_selects) {
+        stato.window.draw(sphere_select);
+    }
+    for (const auto& sphere : spheres) {
+        stato.window.draw(sphere.ball);
+    }
+    for (const auto& line : lines) {
+        stato.window.draw(line);
+    }
+    for (const auto& character_name : character_names) {
+        stato.window.draw(character_name);
+    }
+    if (stato.selected_balls > 0) {
+        stato.window.draw(stato.ball1.ball);
+        for (const auto& description : ball1_description) {
+            stato.window.draw(description);
+        }
+    }
+    if (stato.selected_balls > 1) {
+        stato.window.draw(stato.ball2.ball);
+        for (const auto& description : ball2_description) {
+            stato.window.draw(description);
+        }
+    }
+}
+
+// Battle Simulation
+void drawBattleSimulation(  State& stato, sf::RectangleShape arena, sf::RectangleShape health_container1, sf::RectangleShape health_container2,
+                            std::vector<sf::Text> balls_name, std::vector<sf::Text> balls_health) {
+    stato.window.draw(arena);
+    stato.window.draw(health_container1);
+    stato.window.draw(health_container2);
+    stato.window.draw(stato.ball1.health.healthBar);
+    stato.window.draw(stato.ball2.health.healthBar);
+    for (const auto& ball_name : balls_name) {
+        stato.window.draw(ball_name);
+    }
+    balls_health[0].setString(std::to_string(stato.ball1.health.health));
+    balls_health[1].setString(std::to_string(stato.ball2.health.health));
+    for (const auto& ball_health : balls_health) {
+        stato.window.draw(ball_health);
+    }
+    moveGame(stato);
+    stato.window.draw(stato.ball1.ball);
+    stato.window.draw(stato.ball2.ball);
+}
+
+// Win Screen
+void drawWinScreen (State& stato) {
+
+}
+
+
+
+////////////
+// Handle //
+////////////
+
+// Chiusura finestra
+void handle (State& stato, const sf::Event::Closed& closeEvent) {
+    stato.window.close();
+}
+
+// Pressione tasto
+void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pressEnterText, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
+    if (stato.schermata == 0) {
+        if (keyEvent.code != sf::Keyboard::Key::Escape) {
+            stato.schermata = 1;
+        }
+    }
+    else if (stato.schermata == 1) {
+        if (keyEvent.code == sf::Keyboard::Key::Escape) {
+            if (stato.selected_balls == 0) {
+                stato.schermata = 0;
+            }
+            else if (stato.selected_balls == 1) {
+                stato.selected_balls = 0;
+            }
+            else if (stato.selected_balls == 2) {
+                pressEnterText.setFillColor(pressEnterColor);
+                stato.selected_balls = 1;
+            }
+        }
+        else if (keyEvent.code == sf::Keyboard::Key::Enter) {
+            if (stato.selected_balls == 2) {
+                initialize_arena (stato, balls_name, balls_health);
+            }
+        }
+    }
+}
+
+// Click mouse
+void handle (   State& stato, const sf::Event::MouseButtonPressed& mouseEvent, std::vector<sf::Text>& ball1_description, 
+                std::vector<sf::Text>& ball2_description, sf::Text& pressEnterText, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
+    if (stato.schermata == 0) {
+        stato.schermata = 1;
+    }
+    else if (stato.schermata == 1) {
+        // Variabili
+        sf::Vector2f pos = stato.window.mapPixelToCoords(mouseEvent.position);
+        SphereData selectedSphere;
+
+        // Selezione personaggio
+        if (pos.y > 40 && pos.y < 160) {
+            if (pos.x > 180 && pos.x < 300) {
+                selectedSphere = boxer;
+            }
+            else if (pos.x > 440 && pos.x < 560) {
+                selectedSphere = cowboy;
+            }
+            else if (pos.x > 700 && pos.x < 820) {
+                selectedSphere = chef;
+            }
+        }
+        else if (pos.y > 240 && pos.y < 360) {
+            if (pos.x > 180 && pos.x < 300) {
+                selectedSphere = killer;
+            }
+            else if (pos.x > 440 && pos.x < 560) {
+                selectedSphere = magic;
+            }
+            else if (pos.x > 700 && pos.x < 820) {
+                selectedSphere = hunter;
+            }
+        }
+
+        // Avvio simulazione
+        else if (pos.y > 440.f && pos.y < 500.f && pos.x > 350 && pos.x < 650) {
+            initialize_arena (stato, balls_name, balls_health);
+        }
+
+        // Aggiornamento informazioni personaggio
+        if (!selectedSphere.imagePath.empty()) {
+            if (stato.selected_balls == 0) {
+                if (!stato.ball1.sphere_loader(radius_sphere_selected, selectedSphere)) {
+                    stato.window.close();
+                }
+                stato.ball1.ball.setPosition(sf::Vector2f(110.f, 640.f));
+                update_sphere_data(ball1_description[0], ball1_description[1], ball1_description[2], selectedSphere, true);
+                stato.selected_balls = 1;
+            }
+            else if (stato.selected_balls == 1) {
+                if (!stato.ball2.sphere_loader(radius_sphere_selected, selectedSphere)) {
+                    stato.window.close();
+                }
+                stato.ball2.ball.setPosition(sf::Vector2f(890.f, 640.f));
+                update_sphere_data(ball2_description[0], ball2_description[1], ball2_description[2], selectedSphere, false);
+                pressEnterText.setFillColor(sf::Color::Black);
+                stato.selected_balls = 2;
+            }
+        }
+    }
+}
+
+
+
+////////////
+// Loader //
+////////////
+
+// Title Screen
+sf::Text TS_title_loader (sf::Font& font) {
+    // Stile
+    sf::Text titleText (font, "Sphere Battle", 80);
+    titleText.setFillColor(sf::Color::White);
+    titleText.setStyle(sf::Text::Bold);
+
+    // Posizione
+    sf::FloatRect titleBounds = titleText.getLocalBounds();
+    titleText.setOrigin({titleBounds.position.x + titleBounds.size.x / 2.f, 
+                         titleBounds.position.y + titleBounds.size.y / 2.f});
+    titleText.setPosition({window_width / 2.f, (window_height / 2.f) - 30.f});
+    
+    return titleText;
+}
+
+sf::Text TS_subtitle_loader (sf::Font& font) {
+    // Stile
+    sf::Text subtitleText(font, "press any key", 30);
+    subtitleText.setFillColor(sf::Color(180, 180, 180));
+
+    // Posizione
+    sf::FloatRect subBounds = subtitleText.getLocalBounds();
+    subtitleText.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
+    subtitleText.setPosition({window_width / 2.f, (window_height / 2.f) + 40.f});
+
+    return subtitleText;
+}
+
+// Character Select
+sf::Text CS_press_enter_loader (sf::Font& font) {
+    // Stile
+    sf::Text pressEnterText(font, "Press Enter to start", 20);
+    pressEnterText.setFillColor(pressEnterColor);
+
+    // Posizione
+    sf::FloatRect subBounds = pressEnterText.getLocalBounds();
+    pressEnterText.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
+    pressEnterText.setPosition({500.f, 470.f});
+
+    return pressEnterText;
+}
+
+std::vector<sf::RectangleShape> CS_sphere_selects_loader() {
+    // Variabili
+    std::vector<sf::RectangleShape> sphere_selects;
+    sphere_selects.reserve(6);
+    const sf::Vector2f select_size(120.f, 120.f);
+
+    // Posizioni
+    sf::Vector2f pos[6] = {
+        {180.f, 40.f},  {440.f, 40.f},  {700.f, 40.f},
+        {180.f, 240.f}, {440.f, 240.f}, {700.f, 240.f}
+    };
+
+    // Creazione rettangoli e inserimento nel vettore
+    for (int i = 0; i < 6; i++) {
+        sf::RectangleShape sphere_select(select_size);
+        sphere_select.setFillColor(sf::Color::Transparent);
+        sphere_select.setOutlineColor(sf::Color::Black);
+        sphere_select.setOutlineThickness(-thickness);
+        sphere_select.setPosition(pos[i]);
+        sphere_selects.push_back(sphere_select);
+    }
+
+    return sphere_selects;
+}
+
+std::vector<Sphere> CS_spheres_loader(State& stato) { // Può ritornare errore in caso di file mancante
+    // Variabili
+    std::vector<Sphere> spheres(6);
+
+    // Configurazione sfere
+    auto setupSphere = [&stato] (Sphere& sphere, SphereData dati, sf::Vector2f pos) {
+        if (sphere.sphere_loader(radius_sphere_select, dati)) {
+            sphere.ball.setPosition(pos);
+        }
+        else {
+            stato.window.close();
+        }
+    };
+
+    setupSphere(spheres[0], boxer, sf::Vector2f(240.f, 100.f));
+    setupSphere(spheres[1], cowboy, sf::Vector2f(500.f, 100.f));
+    setupSphere(spheres[2], chef, sf::Vector2f(760.f, 100.f));
+    setupSphere(spheres[3], killer, sf::Vector2f(240.f, 300.f));
+    setupSphere(spheres[4], magic, sf::Vector2f(500.f, 300.f));
+    setupSphere(spheres[5], hunter, sf::Vector2f(760.f, 300.f));
+
+    return spheres;
+}
+
+std::vector<sf::VertexArray> CS_lines_loader () {
+    // Variabili
+    std::vector<sf::VertexArray> lines;
+    lines.reserve(5);
+    const sf::Color color = sf::Color::White;
+
+    // Configurazione linee
+    auto setupLine = [color] (sf::Vector2f pos1, sf::Vector2f pos2) {
+        sf::VertexArray line(sf::PrimitiveType::Lines, 2);
+        line[0].position = pos1;
+        line[0].color = color;
+        line[1].position = pos2;
+        line[1].color = color;
+        return line;
+    };
+    
+    // Creazione linee e inserimento nel vettore
+    lines.push_back(setupLine({0.f, 440.f}, {window_width, 440.f}));
+    lines.push_back(setupLine({500.f, 500.f}, {500.f, window_height}));
+    lines.push_back(setupLine({350.f, 500.f}, {650.f, 500.f}));
+    lines.push_back(setupLine({350.f, 440.f}, {350.f, 500.f}));
+    lines.push_back(setupLine({650.f, 440.f}, {650.f, 500.f}));
+
+    return lines;
+}
+
+std::vector<sf::Text> CS_character_names_loader (sf::Font& font) {
+    // variabili
+    std::vector<sf::Text> character_names;
+    character_names.reserve(6);
+    const unsigned font_size = 30;
+
+    // Nomi
+    SphereData data[6] = {
+        boxer, cowboy, chef, killer, magic, hunter
+    };
+
+    // Posizioni
+    sf::Vector2f pos[6] = {
+        {240.f, 200.f}, {500.f, 200.f}, {760.f, 200.f},
+        {240.f, 400.f}, {500.f, 400.f}, {760.f, 400.f}
+    };
+
+    // Creazione nomi e inserimento nel vettore
+    for (int i = 0; i < 6; i++) {
+        sf::Text character_name(font, data[i].name + " Sphere", font_size);
+
+        // Stile
+        character_name.setFillColor(sf::Color::Black);
+
+        // Posizione
+        sf::FloatRect bounds = character_name.getLocalBounds();
+        character_name.setOrigin({bounds.position.x + bounds.size.x / 2.f, 
+                            bounds.position.y + bounds.size.y / 2.f});
+        character_name.setPosition(pos[i]);
+
+        character_names.push_back(character_name);
+    }
+    
+    return character_names;
+}
+
+// Battle Simulation
+sf::RectangleShape BS_arena_loader() {
+    sf::RectangleShape arena;
+
+    // Stile
+    arena.setSize(sf::Vector2f(500.f, 500.f));
+    arena.setFillColor(sf::Color::Transparent);
+    arena.setOutlineColor(sf::Color::Black);
+    arena.setOutlineThickness(-thickness * 2);
+    
+    // Posizione
+    sf::FloatRect subBounds = arena.getLocalBounds();
+    arena.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
+    arena.setPosition({window_width / 2.f, window_height / 2.f});
+
+    return arena;
+}
+
+sf::RectangleShape BS_health_container_loader(bool isP1) {
+    sf::RectangleShape health_container;
+
+    // Stile
+    health_container.setSize(sf::Vector2f(100.f, 506.f));
+    health_container.setFillColor(sf::Color::Transparent);
+    health_container.setOutlineColor(sf::Color::Black);
+    health_container.setOutlineThickness(-thickness);
+    
+    // Posizione
+    sf::FloatRect subBounds = health_container.getLocalBounds();
+    health_container.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
+    if (isP1) {
+        health_container.setPosition({sf::Vector2f(122.f, 400.f)});
+    }
+    else {
+        health_container.setPosition({sf::Vector2f(window_width - 122.f, 400.f)});
+    }
+
+    return health_container;
+}
+
+
+
+//////////
+// Loop //
+//////////
+
+int main () {
+    State stato (window_width, window_height, window_title);
+    
+    // Loader del Title Screen
+    sf::Text TS_titleText = TS_title_loader(stato.font);
+    sf::Text TS_subtitleText = TS_subtitle_loader(stato.font);
+
+    // Loader del Character Select
+    std::vector<sf::RectangleShape> CS_sphere_selects = CS_sphere_selects_loader();
+    std::vector<Sphere> CS_spheres = CS_spheres_loader(stato);
+    std::vector<sf::VertexArray> CS_lines = CS_lines_loader();
+    std::vector<sf::Text> CS_character_names = CS_character_names_loader(stato.font);
+    sf::Text CS_pressEnterText = CS_press_enter_loader(stato.font);
+    std::vector<sf::Text> CS_ball1_description(3, sf::Text(stato.font));
+    std::vector<sf::Text> CS_ball2_description(3, sf::Text(stato.font));
+
+    // Loader della Battle Simulation
+    sf::RectangleShape BS_arena = BS_arena_loader();
+    sf::RectangleShape BS_health_container1 = BS_health_container_loader(true);
+    sf::RectangleShape BS_health_container2 = BS_health_container_loader(false);
+    std::vector<sf::Text> BS_balls_name(2, sf::Text(stato.font));
+    std::vector<sf::Text> BS_balls_health(2, sf::Text(stato.font));
+
+    // Loop principale
+    while (stato.window.isOpen()) {
+        
+        // Eventi
+        stato.window.handleEvents (
+            [&stato](const sf::Event::Closed& closeEvent) { 
+                handle(stato, closeEvent); 
+            },
+            [&stato, &CS_pressEnterText, &BS_balls_name, &BS_balls_health](const sf::Event::KeyPressed& keyEvent) { 
+                handle(stato, keyEvent, CS_pressEnterText, BS_balls_name, BS_balls_health); 
+            },
+            [&stato, &CS_ball1_description, &CS_ball2_description, &CS_pressEnterText, &BS_balls_name, &BS_balls_health](const sf::Event::MouseButtonPressed& mouseEvent) {
+                handle(stato, mouseEvent, CS_ball1_description, CS_ball2_description, CS_pressEnterText, BS_balls_name, BS_balls_health);
+            }
+        );
+        
+        // Display
+        if (stato.schermata == 0) {
+            stato.window.clear(sf::Color::Black);
+            drawTitleScreen(stato, TS_titleText, TS_subtitleText);
+        }
+        else if (stato.schermata == 1) {
+            stato.window.clear(sf::Color(0, 255, 255));
+            drawSelectScreen(stato, CS_sphere_selects, CS_spheres, CS_lines, CS_character_names, CS_ball1_description, CS_ball2_description, CS_pressEnterText);
+        }
+        else if (stato.schermata == 2) {
+            stato.window.clear(sf::Color(0, 255, 255));
+            drawBattleSimulation(stato, BS_arena, BS_health_container1, BS_health_container2, BS_balls_name, BS_balls_health);
+        }
+        else if (stato.schermata == 3) {
+            stato.window.clear(sf::Color(0, 255, 255));
+            drawWinScreen(stato);
+        }
+        stato.window.display();
+    }
+}
