@@ -6,7 +6,7 @@ cmake -B build && cmake --build build
 # Esecuzione
 Nella cartella build del progetto:
 
-./bin/sphereBattle*n*
+./sphereBattle*n*
 
 dove *n* rappresenta la tappa del progetto
 
