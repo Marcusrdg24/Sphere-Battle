@@ -1,10 +1,10 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
-#include <SFML/Window/Event.hpp>
 #include <vector>
 #include <string>
 #include <iostream>
 #include <cstdlib>
+#include <cmath>
 
 
 
@@ -21,7 +21,7 @@ const float max_frame_rate = 60;
 // Informazioni sfere
 const float radius_sphere_select = 40;
 const float radius_sphere_selected = 70;
-const float radius_sphere_simulation = 40;
+const float radius_sphere_simulation = 50;
 const unsigned vertices = 100;
 const int speed = 5;
 
@@ -44,13 +44,13 @@ const sf::Color pressEnterColor = sf::Color(180, 180, 180);
 /////////////////
 
 sf::Angle reflect_horizontal (sf::Angle a) { // Presa dal laboratorio
-    sf::Vector2f v(1.0f, a);
+    sf::Vector2f v(1.f, a);
     v.x = -v.x;
     return v.angle();
 }
 
 sf::Angle reflect_vertical (sf::Angle a) { // Presa dal laboratorio
-    sf::Vector2f v(1.0f, a);
+    sf::Vector2f v(1.f, a);
     v.y = -v.y;
     return v.angle();
 }
@@ -80,12 +80,12 @@ struct SphereData {
 };
 
 // Istanze di SphereData
-SphereData boxer ("Boxer", sf::Color(255, 176, 0), "Utilities/Images/Orange_Glove.png", "Lottatore coraggioso", "Guantoni");
-SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "Utilities/Images/Yellow_Hat.png", "Cowboy giustiziere", "Revolver");
-SphereData chef ("Chef", sf::Color(0, 255, 27), "Utilities/Images/Green_Pan.png", "Cuoco formidabile", "Padella");
-SphereData killer ("Killer", sf::Color(255, 0, 0), "Utilities/Images/Red_Knife.png", "Assassino spietato", "Coltello");
-SphereData magic ("Magic", sf::Color(67, 0, 255), "Utilities/Images/Blue_Thunder.png", "Mago del clima", "Fulmini");
-SphereData hunter ("Hunter", sf::Color(252, 0, 255), "Utilities/Images/Purple_Trap.png", "Cacciatore spietato", "Trappole");
+SphereData boxer ("Boxer", sf::Color(255, 176, 0), "../Utilities/Images/Orange_Glove.png", "Lottatore coraggioso", "Guantoni");
+SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "../Utilities/Images/Yellow_Hat.png", "Cowboy giustiziere", "Revolver");
+SphereData chef ("Chef", sf::Color(0, 255, 27), "../Utilities/Images/Green_Pan.png", "Cuoco formidabile", "Padella");
+SphereData killer ("Killer", sf::Color(255, 0, 0), "../Utilities/Images/Red_Knife.png", "Assassino spietato", "Coltello");
+SphereData magic ("Magic", sf::Color(67, 0, 255), "../Utilities/Images/Blue_Thunder.png", "Mago del clima", "Fulmini");
+SphereData hunter ("Hunter", sf::Color(252, 0, 255), "../Utilities/Images/Purple_Trap.png", "Cacciatore spietato", "Trappole");
 
 struct Sphere {
     SphereData dati;
@@ -106,15 +106,15 @@ struct Sphere {
         ball.setPointCount(vertices);
         ball.setRadius(radius);
         ball.setTexture(&image);
-        ball.setTextureRect(sf::IntRect({0, 0}, static_cast<sf::Vector2i>(image.getSize()))); // Generato con Gemini
+        ball.setTextureRect(sf::IntRect({0, 0}, static_cast<sf::Vector2i>(image.getSize()))); // Generato da Gemini
         ball.setFillColor(sf::Color::White);
         ball.setOutlineColor(dati.color);
         ball.setOutlineThickness(thickness);
 
         // Posizione
         sf::FloatRect bounds = ball.getLocalBounds();
-        ball.setOrigin({bounds.position.x + bounds.size.x / 2.0f, 
-                        bounds.position.y + bounds.size.y / 2.0f});
+        ball.setOrigin({bounds.position.x + bounds.size.x / 2.f, 
+                        bounds.position.y + bounds.size.y / 2.f});
         return true;
     }
 
@@ -150,18 +150,18 @@ struct State {
         window.setPosition(sf::Vector2i(posX, posY));
 
         // Font
-        if (!font.openFromFile("Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
+        if (!font.openFromFile("../Utilities/Font/PixelifySans-VariableFont_wght.ttf")) {
             std::cerr << "Errore nel caricamento del font!" << std::endl;
             window.close();
         }
     }
 
     void collisions () {
-        // Controllo collisione
+        // Controllo collisione muri
         auto checkWallCollisions = [] (Sphere& sphere) {
             // Variabili
             sf::Vector2f pos = sphere.ball.getPosition();
-            sf::Vector2f dir(1.0f, sphere.angle);
+            sf::Vector2f dir(1.f, sphere.angle);
 
             // Muro sinistro
             if (pos.x - radius_sphere_simulation <= left_wall && dir.x < 0) {
@@ -176,7 +176,7 @@ struct State {
             }
 
             pos = sphere.ball.getPosition();
-            dir = sf::Vector2f(1.0f, sphere.angle);
+            dir = sf::Vector2f(1.f, sphere.angle);
 
             // Muro superiore
             if (pos.y - radius_sphere_simulation <= top_wall && dir.y < 0) {
@@ -193,6 +193,43 @@ struct State {
 
         checkWallCollisions(ball1);
         checkWallCollisions(ball2);
+
+        // Controllo collisione sfere (Generato da Gemini)
+        sf::Vector2f pos1 = ball1.ball.getPosition();
+        sf::Vector2f pos2 = ball2.ball.getPosition();
+
+        // Distanze
+        sf::Vector2f delta = pos2 - pos1;
+        float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+        float minDistance = radius_sphere_simulation * 2.f;
+
+        // Scontro
+        if (distance < minDistance && distance > 0.f) {
+            // Vettore normalizzato
+            sf::Vector2f normal = delta / distance;
+
+            // Sovrapposizione
+            float overlap = 0.5f * (minDistance - distance);
+            ball1.ball.setPosition(pos1 - normal * overlap);
+            ball2.ball.setPosition(pos2 + normal * overlap);
+
+            // Vettori velocità
+            sf::Vector2f v1(1.f, ball1.angle);
+            sf::Vector2f v2(1.f, ball2.angle);
+
+            // Vettore relativo
+            sf::Vector2f vRel = v1 - v2;
+            float dotProduct = vRel.x * normal.x + vRel.y * normal.y;
+
+            // Impulso
+            if (dotProduct > 0.f) {
+                //Nuovi angoli
+                v1 -= dotProduct * normal;
+                v2 += dotProduct * normal;
+                ball1.angle = v1.angle();
+                ball2.angle = v2.angle();
+            }
+        }
     }
 };
 
@@ -215,8 +252,8 @@ void update_sphere_data(sf::Text& nameText, sf::Text& descText, sf::Text& attack
 
     // Posizione
     sf::FloatRect nameBounds = nameText.getLocalBounds();
-        nameText.setOrigin({nameBounds.position.x + nameBounds.size.x / 2.0f, 
-                            nameBounds.position.y + nameBounds.size.y / 2.0f});
+        nameText.setOrigin({nameBounds.position.x + nameBounds.size.x / 2.f, 
+                            nameBounds.position.y + nameBounds.size.y / 2.f});
     if (isP1) {
         nameText.setPosition({110.f, 530.f});
     }
@@ -259,8 +296,8 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
     balls_name[0].setCharacterSize(font_size);
     balls_name[0].setFillColor(textColor);
     sf::FloatRect name1Bounds = balls_name[0].getLocalBounds();
-    balls_name[0].setOrigin({name1Bounds.position.x + name1Bounds.size.x / 2.0f, 
-                        name1Bounds.position.y + name1Bounds.size.y / 2.0f});
+    balls_name[0].setOrigin({name1Bounds.position.x + name1Bounds.size.x / 2.f, 
+                        name1Bounds.position.y + name1Bounds.size.y / 2.f});
     balls_name[0].setPosition({122.f, 100.f});
 
     // Secondo nome
@@ -268,8 +305,8 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
     balls_name[1].setCharacterSize(font_size);
     balls_name[1].setFillColor(textColor);
     sf::FloatRect name2Bounds = balls_name[1].getLocalBounds();
-    balls_name[1].setOrigin({name2Bounds.position.x + name2Bounds.size.x / 2.0f, 
-                        name2Bounds.position.y + name2Bounds.size.y / 2.0f});
+    balls_name[1].setOrigin({name2Bounds.position.x + name2Bounds.size.x / 2.f, 
+                        name2Bounds.position.y + name2Bounds.size.y / 2.f});
     balls_name[1].setPosition({window_width - 122.f, 100.f});
 
     // Prima vita
@@ -277,8 +314,8 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
     balls_health[0].setCharacterSize(font_size);
     balls_health[0].setFillColor(textColor);
     sf::FloatRect health1Bounds = balls_health[0].getLocalBounds();
-    balls_health[0].setOrigin({health1Bounds.position.x + health1Bounds.size.x / 2.0f, 
-                        health1Bounds.position.y + health1Bounds.size.y / 2.0f});
+    balls_health[0].setOrigin({health1Bounds.position.x + health1Bounds.size.x / 2.f, 
+                        health1Bounds.position.y + health1Bounds.size.y / 2.f});
     balls_health[0].setPosition({122.f, 700.f});
 
     // Seconda vita
@@ -286,24 +323,24 @@ void initialize_arena (State& stato, std::vector<sf::Text>& balls_name, std::vec
     balls_health[1].setCharacterSize(font_size);
     balls_health[1].setFillColor(textColor);
     sf::FloatRect health2Bounds = balls_health[1].getLocalBounds();
-    balls_health[1].setOrigin({health2Bounds.position.x + health2Bounds.size.x / 2.0f, 
-                        health2Bounds.position.y + health2Bounds.size.y / 2.0f});
+    balls_health[1].setOrigin({health2Bounds.position.x + health2Bounds.size.x / 2.f, 
+                        health2Bounds.position.y + health2Bounds.size.y / 2.f});
     balls_health[1].setPosition({window_width - 122.f, 700.f});
 
     // Prima sfera
     stato.ball1.ball.setRadius(radius_sphere_simulation);
     sf::FloatRect ball1Bounds = stato.ball1.ball.getLocalBounds();
-    stato.ball1.ball.setOrigin({ball1Bounds.position.x + ball1Bounds.size.x / 2.0f, 
-                        ball1Bounds.position.y + ball1Bounds.size.y / 2.0f});
-    stato.ball1.ball.setPosition({350.f, 400.f});
+    stato.ball1.ball.setOrigin({ball1Bounds.position.x + ball1Bounds.size.x / 2.f, 
+                        ball1Bounds.position.y + ball1Bounds.size.y / 2.f});
+    stato.ball1.ball.setPosition({left_wall + radius_sphere_simulation + 40.f, 400.f});
     stato.ball1.angle = sf::degrees(rand() % 360);
 
     // Seconda sfera
     stato.ball2.ball.setRadius(radius_sphere_simulation);
     sf::FloatRect ball2Bounds = stato.ball2.ball.getLocalBounds();
-    stato.ball2.ball.setOrigin({ball2Bounds.position.x + ball2Bounds.size.x / 2.0f, 
-                        ball2Bounds.position.y + ball2Bounds.size.y / 2.0f});
-    stato.ball2.ball.setPosition({650.f, 400.f});
+    stato.ball2.ball.setOrigin({ball2Bounds.position.x + ball2Bounds.size.x / 2.f, 
+                        ball2Bounds.position.y + ball2Bounds.size.y / 2.f});
+    stato.ball2.ball.setPosition({right_wall - radius_sphere_simulation - 40.f, 400.f});
     stato.ball2.angle = sf::degrees(rand() % 360);
 }
 
@@ -388,7 +425,6 @@ void handle (State& stato, const sf::Event::Closed& closeEvent) {
 
 // Pressione tasto
 void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pressEnterText, std::vector<sf::Text>& balls_name, std::vector<sf::Text>& balls_health) {
-    pressEnterText.setFillColor(pressEnterColor);
     if (stato.schermata == 0) {
         if (keyEvent.code != sf::Keyboard::Key::Escape) {
             stato.schermata = 1;
@@ -403,6 +439,7 @@ void handle (State& stato, const sf::Event::KeyPressed& keyEvent, sf::Text& pres
                 stato.selected_balls = 0;
             }
             else if (stato.selected_balls == 2) {
+                pressEnterText.setFillColor(pressEnterColor);
                 stato.selected_balls = 1;
             }
         }
@@ -492,9 +529,9 @@ sf::Text TS_title_loader (sf::Font& font) {
 
     // Posizione
     sf::FloatRect titleBounds = titleText.getLocalBounds();
-    titleText.setOrigin({titleBounds.position.x + titleBounds.size.x / 2.0f, 
-                         titleBounds.position.y + titleBounds.size.y / 2.0f});
-    titleText.setPosition({window_width / 2.0f, (window_height / 2.0f) - 30.0f});
+    titleText.setOrigin({titleBounds.position.x + titleBounds.size.x / 2.f, 
+                         titleBounds.position.y + titleBounds.size.y / 2.f});
+    titleText.setPosition({window_width / 2.f, (window_height / 2.f) - 30.f});
     
     return titleText;
 }
@@ -506,9 +543,9 @@ sf::Text TS_subtitle_loader (sf::Font& font) {
 
     // Posizione
     sf::FloatRect subBounds = subtitleText.getLocalBounds();
-    subtitleText.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                            subBounds.position.y + subBounds.size.y / 2.0f});
-    subtitleText.setPosition({window_width / 2.0f, (window_height / 2.0f) + 40.0f});
+    subtitleText.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
+    subtitleText.setPosition({window_width / 2.f, (window_height / 2.f) + 40.f});
 
     return subtitleText;
 }
@@ -521,8 +558,8 @@ sf::Text CS_press_enter_loader (sf::Font& font) {
 
     // Posizione
     sf::FloatRect subBounds = pressEnterText.getLocalBounds();
-    pressEnterText.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                            subBounds.position.y + subBounds.size.y / 2.0f});
+    pressEnterText.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
     pressEnterText.setPosition({500.f, 470.f});
 
     return pressEnterText;
@@ -591,7 +628,7 @@ std::vector<Sphere> CS_spheres_loader(State& stato) { // Può ritornare errore i
 
 std::vector<sf::VertexArray> CS_lines_loader () {
     // Variabili
-    std::vector<sf::VertexArray> lines (2);
+    std::vector<sf::VertexArray> lines(5);
     sf::VertexArray line1(sf::PrimitiveType::Lines, 2);
     sf::VertexArray line2(sf::PrimitiveType::Lines, 2);
     sf::VertexArray line3(sf::PrimitiveType::Lines, 2);
@@ -652,8 +689,8 @@ std::vector<sf::Text> CS_character_names_loader (sf::Font& font) {
 
         // Posizione
         sf::FloatRect subBounds = character_name.getLocalBounds();
-        character_name.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                                subBounds.position.y + subBounds.size.y / 2.0f});
+        character_name.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                                subBounds.position.y + subBounds.size.y / 2.f});
         character_name.setPosition({pos.x, pos.y});
     };
 
@@ -696,9 +733,9 @@ sf::RectangleShape BS_arena_loader() {
     
     // Posizione
     sf::FloatRect subBounds = arena.getLocalBounds();
-    arena.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                            subBounds.position.y + subBounds.size.y / 2.0f});
-    arena.setPosition({window_width / 2.0f, window_height / 2.0f});
+    arena.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
+    arena.setPosition({window_width / 2.f, window_height / 2.f});
 
     return arena;
 }
@@ -714,8 +751,8 @@ sf::RectangleShape BS_health_container_loader(bool isP1) {
     
     // Posizione
     sf::FloatRect subBounds = health_container.getLocalBounds();
-    health_container.setOrigin({subBounds.position.x + subBounds.size.x / 2.0f, 
-                            subBounds.position.y + subBounds.size.y / 2.0f});
+    health_container.setOrigin({subBounds.position.x + subBounds.size.x / 2.f, 
+                            subBounds.position.y + subBounds.size.y / 2.f});
     if (isP1) {
         health_container.setPosition({sf::Vector2f(122.f, 400.f)});
     }
@@ -808,6 +845,4 @@ int main () {
         }
         stato.window.display();
     }
-
-    return 0;
 }
