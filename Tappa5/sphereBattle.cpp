@@ -145,12 +145,12 @@ struct SphereData {
 };
 
 // Istanze di SphereData
-SphereData boxer ("Boxer", sf::Color(255, 176, 0), "../Utilities/Images/Orange_Glove.png", "../Utilities/Weapons/Orange_Attack.png", "Lottatore coraggioso", "Guantoni", 0, 100);
-SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "../Utilities/Images/Yellow_Hat.png", "../Utilities/Weapons/Yellow_Attack.png", "Cowboy giustiziere", "Revolver", max_frame_rate * 5, 100);
-SphereData chef ("Chef", sf::Color(0, 255, 27), "../Utilities/Images/Green_Pan.png", "../Utilities/Weapons/Green_Attack.png", "Cuoco formidabile", "Padella", max_frame_rate * 30, 100);
-SphereData killer ("Killer", sf::Color(255, 0, 0), "../Utilities/Images/Red_Knife.png", "../Utilities/Weapons/Red_Attack.png", "Assassino spietato", "Coltello", max_frame_rate * 20, 100);
-SphereData magic ("Magic", sf::Color(67, 0, 255), "../Utilities/Images/Blue_Thunder.png", "../Utilities/Weapons/Blue_Attack.png", "Mago del clima", "Fulmini", max_frame_rate * 50, 100);
-SphereData hunter ("Hunter", sf::Color(252, 0, 255), "../Utilities/Images/Purple_Trap.png", "../Utilities/Weapons/Purple_Attack.png", "Cacciatore spietato", "Trappole", max_frame_rate * 60, 100);
+SphereData boxer ("Boxer", sf::Color(255, 176, 0), "../Utilities/Images/Orange_Glove.png", "../Utilities/Weapons/Orange_Glove.png", "Lottatore coraggioso", "Guantoni", 0, 100);
+SphereData cowboy ("Cowboy", sf::Color(247, 255, 0), "../Utilities/Images/Yellow_Hat.png", "../Utilities/Weapons/Yellow_Revolver.png", "Cowboy giustiziere", "Revolver", max_frame_rate * 5, 100);
+SphereData chef ("Chef", sf::Color(0, 255, 27), "../Utilities/Images/Green_Pan.png", "../Utilities/Weapons/Green_Food.png", "Cuoco formidabile", "Padella", max_frame_rate * 30, 100);
+SphereData killer ("Killer", sf::Color(255, 0, 0), "../Utilities/Images/Red_Knife.png", "../Utilities/Weapons/Red_Knife.png", "Assassino spietato", "Coltello", max_frame_rate * 20, 100);
+SphereData magic ("Magic", sf::Color(67, 0, 255), "../Utilities/Images/Blue_Thunder.png", "../Utilities/Weapons/Blue_Thunder.png", "Mago del clima", "Fulmini", max_frame_rate * 50, 100);
+SphereData hunter ("Hunter", sf::Color(252, 0, 255), "../Utilities/Images/Purple_Trap.png", "../Utilities/Weapons/Purple_Trap.png", "Cacciatore spietato", "Trappole", max_frame_rate * 60, 100);
 
 struct Sphere {
     SphereData dati;
